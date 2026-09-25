@@ -325,10 +325,9 @@ export async function runBooklet(options: {
                 corrections: exportFrames.value.corrections,
               }),
             ).catch((error: unknown): NotRun => {
+              // A missing library archive or Builder mesh pack skips; a present but unusable one fails.
               if (!(error instanceof PlayerStageError)) throw error;
-              return /^no LDraw library archive at /u.test(error.message)
-                ? skipped(error.message)
-                : failed(error.message);
+              return error.absent ? skipped(error.message) : failed(error.message);
             }));
 
   const stages = { read, identify, align, catalog, exportFrames, playback, key };

@@ -10,16 +10,17 @@ import { registerBookletHooks } from "../booklet/node-hooks.mjs";
  *
  * For every set in tools/player/sets.ts it compares the data's stamp.json
  * with the inputs and generating code now (tools/player/freshness.ts); when
- * the data is missing or stale it runs `npm run booklet --set <id>`. Then it
- * starts the Vite dev server on 127.0.0.1 (port 5173, or PORT), prints its
- * URL and opens the player in the default browser (not with --no-open).
+ * the data is missing or stale it runs `node tools/booklet/run.mjs --set <id>`,
+ * which is what `npm run booklet -- --set <id>` runs. Then it starts the Vite
+ * dev server on 127.0.0.1 (port 5173, or PORT), prints its URL and opens the
+ * player in the default browser, unless run as `npm start -- --no-open`.
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const argv = process.argv.slice(2);
 const unknown = argv.filter((argument) => argument !== "--no-open");
 if (unknown.length > 0) {
   process.stderr.write(
-    `npm start: unknown argument(s) ${unknown.join(" ")}; the only flag is --no-open.\n`,
+    `npm start: unknown argument(s) ${unknown.join(" ")}; the only flag is --no-open, passed as npm start -- --no-open.\n`,
   );
   process.exit(2);
 }

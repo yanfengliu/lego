@@ -17,13 +17,11 @@
  * `npm run booklet` writes both from LEGO's official model export and the
  * harness's alignment of it to the printed steps; a booklet reader that
  * places the parts itself would write the same two files. The player reads
- * only these, never the official model or the harness.
+ * only these, never the official model or the harness. A source may add the
+ * optional fields below, which the player checks but does not use.
  */
 export const PLAYER_STEPS_VERSION = "lego.player-steps/1";
 export const PLAYER_SETS_VERSION = "lego.player-sets/1";
-
-/** How a step's parts were chosen, as the source reports it; the player only displays it. */
-export type StepAlignment = "identity" | "count-fallback" | "counts" | "mismatch";
 
 export interface PlayerStep {
   /** The printed step number: 1..N, contiguous. */
@@ -32,9 +30,10 @@ export interface PlayerStep {
   readonly page: number;
   /** Part rows this step adds to the main model. */
   readonly partsAdded: number;
-  readonly alignment: StepAlignment;
-  /** True when the step adds parts the model builds as a separate sub-build; v1 shows them in final position. */
-  readonly subBuild: boolean;
+  /** Optional: how the source chose this step's parts, as a short label in its own words. The player does not read it. */
+  readonly alignment?: string;
+  /** Optional: true when the step adds parts the source builds as a separate sub-build. The player does not read it. */
+  readonly subBuild?: boolean;
 }
 
 export interface PlayerSetInfo {
@@ -42,12 +41,12 @@ export interface PlayerSetInfo {
   readonly name: string;
   /** Pages in the booklet PDF. */
   readonly bookletPages: number;
-  /** Where the parts and their grouping came from, in words. */
+  /** A short label for where the parts and their grouping came from, shown over the 3D view. */
   readonly modelSource: string;
   /** Part rows in the main model: the sum of every step's partsAdded. */
   readonly partCount: number;
-  /** Parts of the source model that no printed step places, left out of model.mpd. */
-  readonly unplacedParts: number;
+  /** Optional: parts of the source model that no printed step places, left out of model.mpd. The player does not read it. */
+  readonly unplacedParts?: number;
 }
 
 export interface PlayerStepsFile {
@@ -66,9 +65,11 @@ export class PlayerDataError extends Error {
   override readonly name = "PlayerDataError";
 }
 
-const ALIGNMENTS: readonly StepAlignment[] = ["identity", "count-fallback", "counts", "mismatch"];
 const MAX_STEPS = 10_000;
 const MAX_PARTS = 100_000;
+const MAX_TEXT = 200;
+/** A label (the model source over the 3D view, a step's alignment) is a few words, not a report. */
+const MAX_LABEL = 64;
 
 function record(value: unknown, what: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -86,8 +87,13 @@ function whole(value: unknown, what: string, min: number, max: number): number {
   return value;
 }
 
-function text(value: unknown, what: string): string {
-  if (typeof value !== "string" || value.trim() === "" || value.length > 200) {
+function text(value: unknown, what: string, max = MAX_TEXT): string {
+  if (typeof value === "string" && value.length > max) {
+    throw new PlayerDataError(
+      `${what} is ${value.length} characters long; expected at most ${max}.`,
+    );
+  }
+  if (typeof value !== "string" || value.trim() === "") {
     throw new PlayerDataError(`${what} is ${JSON.stringify(value)}; expected a non-empty string.`);
   }
   return value;
@@ -107,9 +113,11 @@ export function parsePlayerSteps(json: unknown): PlayerStepsFile {
     id: text(set.id, "set.id"),
     name: text(set.name, "set.name"),
     bookletPages,
-    modelSource: text(set.modelSource, "set.modelSource"),
+    modelSource: text(set.modelSource, "set.modelSource", MAX_LABEL),
     partCount: whole(set.partCount, "set.partCount", 0, MAX_PARTS),
-    unplacedParts: whole(set.unplacedParts, "set.unplacedParts", 0, MAX_PARTS),
+    ...(set.unplacedParts === undefined
+      ? {}
+      : { unplacedParts: whole(set.unplacedParts, "set.unplacedParts", 0, MAX_PARTS) }),
   };
   if (!Array.isArray(file.steps) || file.steps.length === 0 || file.steps.length > MAX_STEPS) {
     throw new PlayerDataError(`steps.json steps must list 1 to ${MAX_STEPS} printed steps.`);
@@ -121,23 +129,20 @@ export function parsePlayerSteps(json: unknown): PlayerStepsFile {
     if (step !== index + 1) {
       throw new PlayerDataError(`${at}.step is ${step}; printed steps must run 1..N in order.`);
     }
-    const alignment = entry.alignment as StepAlignment;
-    if (!ALIGNMENTS.includes(alignment)) {
+    const { subBuild } = entry;
+    if (subBuild !== undefined && typeof subBuild !== "boolean") {
       throw new PlayerDataError(
-        `${at}.alignment is ${JSON.stringify(entry.alignment)}; expected one of ${ALIGNMENTS.join(", ")}.`,
-      );
-    }
-    if (typeof entry.subBuild !== "boolean") {
-      throw new PlayerDataError(
-        `${at}.subBuild is ${JSON.stringify(entry.subBuild)}; expected true or false.`,
+        `${at}.subBuild is ${JSON.stringify(subBuild)}; expected true or false, or no subBuild field.`,
       );
     }
     return {
       step,
       page: whole(entry.page, `${at}.page`, 1, bookletPages),
       partsAdded: whole(entry.partsAdded, `${at}.partsAdded`, 0, MAX_PARTS),
-      alignment,
-      subBuild: entry.subBuild,
+      ...(entry.alignment === undefined
+        ? {}
+        : { alignment: text(entry.alignment, `${at}.alignment`, MAX_LABEL) }),
+      ...(subBuild === undefined ? {} : { subBuild }),
     };
   });
   const total = steps.reduce((sum, { partsAdded }) => sum + partsAdded, 0);

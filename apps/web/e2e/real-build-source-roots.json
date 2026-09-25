@@ -2,6 +2,7 @@
   "schemaVersion": "lego.real-build-source-roots/1",
   "roots": [
     "apps/web/e2e",
+    "apps/web/editor.html",
     "apps/web/index.html",
     "apps/web/node_modules/.vite",
     "apps/web/package.json",
@@ -123,6 +124,7 @@
     "scripts/windows-lock-exact-files.ps1",
     "scripts/windows-lock-real-build-snapshot.ps1",
     "scripts/windows-open-file-disposition.ps1",
+    "tools/player",
     "tsconfig.json"
   ]
 }

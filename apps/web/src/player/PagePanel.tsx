@@ -1,15 +1,36 @@
 import { useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+
+const message = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));
+
+/** Why the booklet did not load: the server's own words for a plain-text error answer. */
+async function loadFailure(url: string, reason: unknown): Promise<string> {
+  const status = (reason as { status?: unknown } | null)?.status;
+  if (typeof status !== "number" || status === 0) return message(reason);
+  const response = await fetch(url, { cache: "no-store" });
+  return response.headers.get("Content-Type")?.startsWith("text/plain")
+    ? await response.text()
+    : `booklet PDF not found (${response.status} from ${url})`;
+}
 
 /**
  * The booklet page for the current step, rendered with pdf.js and fitted to
- * the panel. The panel carries data-rendered-page once a page is on screen.
+ * the panel. pdf.js reads the booklet by URL in ranges, when the server offers
+ * them, so a page shows without the whole 70 MB file. The panel carries
+ * data-rendered-page once a page is on screen.
+ *
+ * A booklet that fails to load hides every page; a page that fails to render
+ * hides only itself, so another step's page still shows.
  */
 export function PagePanel({ url, page }: { readonly url: string; readonly page: number }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<{
+    readonly page: number;
+    readonly text: string;
+  } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
@@ -23,30 +44,30 @@ export function PagePanel({ url, page }: { readonly url: string; readonly page: 
 
   useEffect(() => {
     let cancelled = false;
-    let loaded: PDFDocumentProxy | null = null;
+    let task: PDFDocumentLoadingTask | null = null;
     (async () => {
-      const response = await fetch(url);
-      if (!response.ok) {
-        const detail = response.headers.get("Content-Type")?.startsWith("text/plain")
-          ? await response.text()
-          : `booklet PDF not found (${response.status} from ${url})`;
-        throw new Error(detail);
-      }
-      const bytes = new Uint8Array(await response.arrayBuffer());
       const pdfjs = await import("pdfjs-dist");
       pdfjs.GlobalWorkerOptions.workerSrc = (
         await import("pdfjs-dist/build/pdf.worker.mjs?url")
       ).default;
-      // The booklet is read locally; it may not run scripts or pull in outside data.
-      loaded = await pdfjs.getDocument({ data: bytes, isEvalSupported: false }).promise;
-      if (cancelled) void loaded.destroy();
-      else setDocument(loaded);
+      if (cancelled) return;
+      // The booklet is read locally; it may not run scripts. Pages are fetched as they are shown.
+      task = pdfjs.getDocument({
+        url,
+        isEvalSupported: false,
+        disableAutoFetch: true,
+        disableStream: true,
+      });
+      const loaded = await task.promise.catch(async (reason: unknown) => {
+        throw new Error(await loadFailure(url, reason));
+      });
+      if (!cancelled) setDocument(loaded);
     })().catch((reason: unknown) => {
-      if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+      if (!cancelled) setLoadError(message(reason));
     });
     return () => {
       cancelled = true;
-      void loaded?.destroy();
+      void task?.destroy();
     };
   }, [url]);
 
@@ -73,12 +94,15 @@ export function PagePanel({ url, page }: { readonly url: string; readonly page: 
       canvas.style.height = `${Math.floor(viewport.height / ratio)}px`;
       task = pdfPage.render({ canvas, viewport });
       await task.promise;
-      if (!cancelled) panelRef.current!.dataset.renderedPage = String(page);
+      if (cancelled) return;
+      panelRef.current!.dataset.renderedPage = String(page);
+      setPageError(null);
     })().catch((reason: unknown) => {
       if (cancelled || (reason instanceof Error && reason.name === "RenderingCancelledException")) {
         return;
       }
-      setError(reason instanceof Error ? reason.message : String(reason));
+      delete panelRef.current!.dataset.renderedPage;
+      setPageError({ page, text: message(reason) });
     });
     return () => {
       cancelled = true;
@@ -86,6 +110,8 @@ export function PagePanel({ url, page }: { readonly url: string; readonly page: 
     };
   }, [document, page, size]);
 
+  // A page error belongs to its page: moving to another step shows that step's page again.
+  const error = loadError ?? (pageError?.page === page ? pageError.text : null);
   return (
     <div className="page-panel" ref={panelRef} aria-label={`Booklet page ${page}`}>
       <canvas ref={canvasRef} hidden={error !== null} />

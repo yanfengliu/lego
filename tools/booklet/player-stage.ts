@@ -3,8 +3,9 @@ import { resolve } from "node:path";
 
 import {
   PLAYER_STEPS_VERSION,
+  type PlayerSetInfo,
+  type PlayerStep,
   type PlayerStepsFile,
-  type StepAlignment,
 } from "../../apps/web/src/player/player-data.ts";
 import {
   currentPlayerStamp,
@@ -50,7 +51,16 @@ export const PLAYER_STAGE_VERSION = "lego.booklet-player/1";
 
 export class PlayerStageError extends Error {
   override readonly name = "PlayerStageError";
+  /** True when an input is missing rather than bad: `npm run booklet` skips the stage instead of failing it. */
+  readonly absent: boolean;
+  constructor(message: string, options: { readonly absent?: boolean } = {}) {
+    super(message);
+    this.absent = options.absent ?? false;
+  }
 }
+
+/** The harness's alignment verdicts, as this generator labels steps.json's optional `alignment`. */
+export type StepAlignment = "identity" | "count-fallback" | "counts" | "mismatch";
 
 const ALIGNMENT: Readonly<Record<StepVerdict, StepAlignment>> = {
   identity: "identity",
@@ -59,8 +69,17 @@ const ALIGNMENT: Readonly<Record<StepVerdict, StepAlignment>> = {
   mismatch: "mismatch",
 };
 
-export const MODEL_SOURCE =
-  "LEGO's official model of the set (a reference build), grouped into printed steps by the booklet harness's alignment";
+/** What this generator writes: the player's contract, with the fields it leaves optional filled in. */
+export interface GeneratedPlayerSteps extends PlayerStepsFile {
+  readonly set: PlayerSetInfo & { readonly unplacedParts: number };
+  readonly steps: readonly (PlayerStep & {
+    readonly alignment: StepAlignment;
+    readonly subBuild: boolean;
+  })[];
+}
+
+/** steps.json's `set.modelSource`: the label the player shows over the 3D view. model.mpd's header says more. */
+export const MODEL_SOURCE = "Reference build: LEGO's official model";
 
 export interface PlayerDataInput {
   readonly set: PlayerSet;
@@ -76,7 +95,7 @@ export interface PlayerDataInput {
 }
 
 export interface PlayerData {
-  readonly steps: PlayerStepsFile;
+  readonly steps: GeneratedPlayerSteps;
   readonly model: PackedPlayerModel;
   readonly correctedParts: number;
   /** Designs drawn from a stand-in, with how many parts each. */
@@ -116,6 +135,7 @@ export function openSubBuildTest(
 }
 
 const byName = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 export function buildPlayerData(input: PlayerDataInput): PlayerData {
   const { set, key, align, official } = input;
@@ -191,7 +211,7 @@ export function buildPlayerData(input: PlayerDataInput): PlayerData {
     }),
   );
   const inOpenSubBuild = openSubBuildTest(key, align);
-  const steps: PlayerStepsFile = {
+  const steps: GeneratedPlayerSteps = {
     version: PLAYER_STEPS_VERSION,
     set: {
       id: set.id,
@@ -216,13 +236,22 @@ export function buildPlayerData(input: PlayerDataInput): PlayerData {
       };
     }),
   };
+  const verdicts = (Object.keys(ALIGNMENT) as StepVerdict[]).flatMap((verdict) => {
+    const count = align.steps.filter((step) => step.verdict === verdict).length;
+    return count === 0 ? [] : [`${verdict} for ${plural(count, "step")}`];
+  });
+  const exceptCorrected =
+    applied.length === 0
+      ? ""
+      : `, except designs ${applied.join(", ")}, whose export frames tools/booklet/export-frames.ts corrects`;
   const model = packPlayerModel({
     name: `${set.id}.ldr`,
     header: [
       `0 ${set.name}: reference build, one 0 STEP per printed step`,
       `0 Name: ${set.id}.ldr`,
       "0 Author: npm run booklet (tools/booklet/player-stage.ts)",
-      `0 // Parts from ${MODEL_SOURCE}.`,
+      `0 // ${MODEL_SOURCE}. Its parts keep their official poses${exceptCorrected}; left out: ${plural(steps.set.unplacedParts, "part")} no printed step places.`,
+      `0 // Grouped into printed steps by the booklet harness's alignment: ${verdicts.join(", ") || "no steps"}.`,
       "0 // Geometry and colours from the official LDraw.org parts library, each file keeping its own author and licence lines; parts/builder/ files are stand-ins from LEGO Builder meshes for designs it lacks.",
     ],
     steps: rowsByStep,
@@ -263,7 +292,11 @@ export interface PlayerStage {
   readonly modelBytes: number;
 }
 
-/** Builds and writes one set's player data; a missing or refused input fails it with a PlayerStageError naming it. */
+/**
+ * Builds and writes one set's player data. A missing input throws a
+ * PlayerStageError marked `absent` and naming it, which the run reports as
+ * skipped; a refused one throws an unmarked one, which fails the run.
+ */
 export function runPlayerStage(input: {
   readonly set: PlayerSet;
   readonly directory: string;
@@ -283,9 +316,10 @@ export function runPlayerStage(input: {
       standInFor: builderStandIns(input.inputs.meshFallback),
     });
   } catch (error) {
-    if (error instanceof PlayerLibraryError || error instanceof PlayerModelError) {
-      throw new PlayerStageError(error.message);
+    if (error instanceof PlayerLibraryError) {
+      throw new PlayerStageError(error.message, { absent: error.absent });
     }
+    if (error instanceof PlayerModelError) throw new PlayerStageError(error.message);
     throw error;
   }
   writePlayerData(

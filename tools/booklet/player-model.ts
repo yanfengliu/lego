@@ -14,7 +14,11 @@
  *
  * Bound: a library file is resolved by the LDraw search order (parts/, then
  * p/; s/ under parts/, 48/ and 8/ under p/). A reference no file answers
- * fails the pack by name; nothing is dropped.
+ * fails the pack by name; nothing is dropped. A file that reaches itself,
+ * directly or through others, fails it too, since an LDraw loader (three.js's
+ * LDrawLoader) would expand it forever, and so does a chain of references
+ * nested deeper than `maxDepth` files below the main model, counted along the
+ * longest chain.
  */
 export const PLAYER_MODEL_LIMITS = Object.freeze({
   maxFiles: 20_000,
@@ -85,14 +89,84 @@ export function formatRow(row: ModelRow, filename = row.filename): string {
   return `1 ${row.colorCode} ${[...row.positionLdu, ...row.matrix].map(number).join(" ")} ${filename}`;
 }
 
+/** A reference chain for an error message: whole when short, else its ends. */
+function describeChain(names: readonly string[]): string {
+  const shown =
+    names.length <= 8
+      ? names
+      : [...names.slice(0, 3), `… ${names.length - 6} more …`, ...names.slice(-3)];
+  return shown.join(" -> ");
+}
+
+/**
+ * Refuses a file that reaches itself and a chain nested past `maxDepth`.
+ * `roots` are the files the main model names (depth 1); `references` holds
+ * the embedded files each file names. Depth is measured along the longest
+ * chain, since a loader expands every chain, not only the shortest path by
+ * which packing first reached a file. Recursion stops at `maxDepth`.
+ */
+function checkNesting(
+  roots: readonly string[],
+  references: ReadonlyMap<string, readonly string[]>,
+): void {
+  const { maxDepth } = PLAYER_MODEL_LIMITS;
+  /** Finished files: how many files the longest chain from each holds, itself included. */
+  const height = new Map<string, number>();
+  /** Finished files: the file named next on that longest chain. */
+  const deepest = new Map<string, string>();
+  const chain: string[] = [];
+  const longestFrom = (name: string) => {
+    const names = [name];
+    for (let next = deepest.get(name); next !== undefined; next = deepest.get(next)) {
+      names.push(next);
+    }
+    return names;
+  };
+  const tooDeep = (names: readonly string[]) =>
+    new PlayerModelError(
+      `The model nests files more than ${maxDepth} deep: ${describeChain(names)}; an LDraw loader expands every level, so flatten the sub-models or fix the library file that nests them.`,
+    );
+  const visit = (name: string): number => {
+    const at = chain.indexOf(name);
+    if (at >= 0) {
+      throw new PlayerModelError(
+        `The model's files form a reference cycle: ${describeChain([...chain.slice(at), name])}. An LDraw loader would expand it forever; fix the sub-model or library file that names ${name} again.`,
+      );
+    }
+    let below = height.get(name);
+    if (below === undefined) {
+      if (chain.length >= maxDepth) throw tooDeep([...chain, name]);
+      chain.push(name);
+      below = 1;
+      for (const target of new Set(references.get(name))) {
+        const through = visit(target) + 1;
+        if (through > below) {
+          below = through;
+          deepest.set(name, target);
+        }
+      }
+      chain.pop();
+      height.set(name, below);
+    }
+    if (chain.length + below > maxDepth) throw tooDeep([...chain, ...longestFrom(name)]);
+    return below;
+  };
+  for (const root of new Set(roots)) visit(root);
+}
+
 export function packPlayerModel(input: PlayerModelInput): PackedPlayerModel {
   const submodels = new Map([...input.submodels].map(([name, rows]) => [clean(name), rows]));
+  if (submodels.has(clean(input.name))) {
+    throw new PlayerModelError(
+      `A sub-model is named ${input.name}, like the main model, so a reference to it would reach the main model; rename the sub-model.`,
+    );
+  }
   /** Embedded files by name, in the order they were first reached. */
   const embedded = new Map<string, string>();
-  const pending: { readonly name: string; readonly depth: number }[] = [];
+  const pending: string[] = [];
   let bytes = 0;
 
-  const embed = (name: string, body: string, depth: number) => {
+  const embed = (name: string, body: string) => {
     if (embedded.size >= PLAYER_MODEL_LIMITS.maxFiles) {
       throw new PlayerModelError(
         `The model reaches more than ${PLAYER_MODEL_LIMITS.maxFiles} files.`,
@@ -103,21 +177,21 @@ export function packPlayerModel(input: PlayerModelInput): PackedPlayerModel {
     if (bytes > PLAYER_MODEL_LIMITS.maxBytes) {
       throw new PlayerModelError(`The packed model passes ${PLAYER_MODEL_LIMITS.maxBytes} bytes.`);
     }
-    pending.push({ name, depth });
+    pending.push(name);
   };
 
   /** The embedded name a reference resolves to, embedding the file on first sight. */
-  const resolveReference = (reference: string, from: string, depth: number): string => {
+  const resolveReference = (reference: string, from: string): string => {
     const name = clean(reference);
     if (submodels.has(name)) {
-      if (!embedded.has(name)) embed(name, "", depth + 1);
+      if (!embedded.has(name)) embed(name, "");
       return name;
     }
     for (const candidate of libraryCandidates(name)) {
       if (embedded.has(candidate)) return candidate;
       const text = input.library.read(candidate);
       if (text === null) continue;
-      embed(candidate, text, depth + 1);
+      embed(candidate, text);
       return candidate;
     }
     throw new PlayerModelError(
@@ -125,19 +199,20 @@ export function packPlayerModel(input: PlayerModelInput): PackedPlayerModel {
     );
   };
 
+  /** The embedded files the main model names, then those each embedded file names. */
+  const roots: string[] = [];
+  const references = new Map<string, string[]>();
+
   const mainRows = input.steps.map((rows, index) =>
-    rows.map((row) =>
-      formatRow(row, resolveReference(row.filename, `Printed step ${index + 1}`, 0)),
-    ),
+    rows.map((row) => {
+      const target = resolveReference(row.filename, `Printed step ${index + 1}`);
+      roots.push(target);
+      return formatRow(row, target);
+    }),
   );
 
-  /** Rewrites a file's type-1 references to embedded names; the rest of each line is kept. */
-  const rewrite = (name: string, text: string, depth: number): string => {
-    if (depth > PLAYER_MODEL_LIMITS.maxDepth) {
-      throw new PlayerModelError(
-        `${name} nests files more than ${PLAYER_MODEL_LIMITS.maxDepth} deep.`,
-      );
-    }
+  /** Rewrites a file's type-1 references to embedded names, noting each in `targets`; the rest of each line is kept. */
+  const rewrite = (name: string, text: string, targets: string[]): string => {
     const lines: string[] = [];
     for (const raw of text.split(/\r?\n/u)) {
       const line = raw.trim();
@@ -153,7 +228,8 @@ export function packPlayerModel(input: PlayerModelInput): PackedPlayerModel {
       }
       if (tokens.length < 15)
         throw new PlayerModelError(`${name} has a short type-1 row: ${line.slice(0, 80)}`);
-      const target = resolveReference(tokens.slice(14).join(" "), name, depth);
+      const target = resolveReference(tokens.slice(14).join(" "), name);
+      targets.push(target);
       lines.push([...tokens.slice(0, 14), target].join(" "));
     }
     while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
@@ -162,15 +238,24 @@ export function packPlayerModel(input: PlayerModelInput): PackedPlayerModel {
 
   const bodies = new Map<string, string>();
   for (let index = 0; index < pending.length; index += 1) {
-    const { name, depth } = pending[index]!;
+    const name = pending[index]!;
+    const targets: string[] = [];
     const rows = submodels.get(name);
     bodies.set(
       name,
       rows
-        ? rows.map((row) => formatRow(row, resolveReference(row.filename, name, depth))).join("\n")
-        : rewrite(name, embedded.get(name)!, depth),
+        ? rows
+            .map((row) => {
+              const target = resolveReference(row.filename, name);
+              targets.push(target);
+              return formatRow(row, target);
+            })
+            .join("\n")
+        : rewrite(name, embedded.get(name)!, targets),
     );
+    references.set(name, targets);
   }
+  checkNesting(roots, references);
 
   const colourLines = input.colours
     .split(/\r?\n/u)

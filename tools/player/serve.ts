@@ -1,5 +1,6 @@
 import { createReadStream, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
+import { pipeline } from "node:stream";
 import { fileURLToPath } from "node:url";
 
 import type { Plugin } from "vite";
@@ -20,6 +21,10 @@ import { findInput, PLAYER_SETS, playerOutputDir } from "./sets.ts";
  * Every path comes from the manifest; a request names only a set id and one
  * of three fixed file names. A missing file answers 404 with a plain-text
  * message saying what to do, which the player shows as it is.
+ *
+ * A file GET may ask for one byte range (`Range: bytes=first-last`), which
+ * pdf.js uses to show a booklet page without reading the whole booklet; any
+ * other Range answers 416.
  */
 export const PLAYER_DATA_PREFIX = "/player-data/";
 
@@ -96,6 +101,37 @@ function isFile(path: string): number | null {
   }
 }
 
+/** The bytes a Range header asks for, first and last inclusive. */
+export interface ByteRange {
+  readonly first: number;
+  readonly last: number;
+}
+
+/**
+ * What a GET's Range header asks of a file of `size` bytes: null for the
+ * whole file (no header), one satisfiable range, or "unsatisfiable" for
+ * anything else: a range past the end, a malformed header, other units or
+ * several ranges.
+ */
+export function byteRange(
+  header: string | undefined,
+  size: number,
+): ByteRange | "unsatisfiable" | null {
+  if (header === undefined) return null;
+  const match = /^bytes=(\d*)-(\d*)$/u.exec(header.trim());
+  if (!match) return "unsatisfiable";
+  const [, first, last] = match as unknown as [string, string, string];
+  if (first === "") {
+    // bytes=-n: the last n bytes.
+    const length = Number(last);
+    if (last === "" || length === 0 || size === 0) return "unsatisfiable";
+    return { first: Math.max(0, size - length), last: size - 1 };
+  }
+  const start = Number(first);
+  if (start >= size || (last !== "" && Number(last) < start)) return "unsatisfiable";
+  return { first: start, last: last === "" ? size - 1 : Math.min(Number(last), size - 1) };
+}
+
 export function playerDataPlugin(): Plugin {
   return {
     name: "lego-player-data",
@@ -114,7 +150,7 @@ export function playerDataPlugin(): Plugin {
           response.end(body);
         };
         if (request.method !== "GET" && request.method !== "HEAD") {
-          reply(405, "text/plain; charset=utf-8", "Player data is read-only: use GET.");
+          reply(405, "text/plain; charset=utf-8", "Player data is read-only: use GET or HEAD.");
           return;
         }
         if (route.kind === "sets") {
@@ -130,17 +166,45 @@ export function playerDataPlugin(): Plugin {
           reply(404, "text/plain; charset=utf-8", route.missing);
           return;
         }
-        response.statusCode = 200;
+        response.setHeader("Accept-Ranges", "bytes");
+        // Ranges apply to GET only, and If-Range names a version this route cannot check.
+        const range =
+          request.method === "GET" && request.headers["if-range"] === undefined
+            ? byteRange(request.headers.range, size)
+            : null;
+        if (range === "unsatisfiable") {
+          response.setHeader("Content-Range", `bytes */${size}`);
+          reply(
+            416,
+            "text/plain; charset=utf-8",
+            `Range ${JSON.stringify(request.headers.range)} is not one satisfiable byte range of this ${size}-byte file; ask for bytes=first-last with first below ${size}.`,
+          );
+          return;
+        }
+        response.statusCode = range === null ? 200 : 206;
         response.setHeader("Content-Type", route.type);
-        response.setHeader("Content-Length", String(size));
+        response.setHeader(
+          "Content-Length",
+          String(range === null ? size : range.last - range.first + 1),
+        );
         response.setHeader("Cache-Control", "no-store");
+        if (range !== null) {
+          response.setHeader("Content-Range", `bytes ${range.first}-${range.last}/${size}`);
+        }
         if (request.method === "HEAD") {
           response.end();
           return;
         }
-        createReadStream(route.path)
-          .on("error", () => response.destroy())
-          .pipe(response);
+        // pipeline closes the file when the client hangs up early, as pdf.js does after
+        // the headers of its first booklet request; a file read error cuts the response.
+        pipeline(
+          createReadStream(
+            route.path,
+            range === null ? {} : { start: range.first, end: range.last },
+          ),
+          response,
+          () => {},
+        );
       });
     },
   };

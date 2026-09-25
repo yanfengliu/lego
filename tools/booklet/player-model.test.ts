@@ -4,6 +4,7 @@ import { mainModelStepRows } from "../../apps/web/src/player/player-data.ts";
 import {
   libraryCandidates,
   packPlayerModel,
+  PLAYER_MODEL_LIMITS,
   PlayerModelError,
   type LibraryReader,
   type ModelRow,
@@ -44,15 +45,22 @@ const row = (filename: string, colorCode = 4, x = 0): ModelRow => ({
   filename,
 });
 
-const pack = (steps: readonly (readonly ModelRow[])[], files = SYNTHETIC_LIBRARY) =>
+const pack = (
+  steps: readonly (readonly ModelRow[])[],
+  files: Record<string, string> = SYNTHETIC_LIBRARY,
+  submodels = new Map([["assembly_0", [row("3024.dat", 47, 10)]]]),
+) =>
   packPlayerModel({
     name: "fixture.ldr",
     header: ["0 Synthetic fixture", "0 Name: fixture.ldr"],
     steps,
-    submodels: new Map([["assembly_0", [row("3024.dat", 47, 10)]]]),
+    submodels,
     colours: COLOURS,
     library: library(files),
   });
+
+/** A library file whose only row names `reference`. */
+const naming = (reference: string) => `0 Synthetic\n1 16 0 0 0 1 0 0 0 1 0 0 0 1 ${reference}`;
 
 describe("packPlayerModel", () => {
   it("resolves references in LDraw's search order", () => {
@@ -106,6 +114,63 @@ describe("packPlayerModel", () => {
     const missingSubpart = { ...SYNTHETIC_LIBRARY, "parts/s/3001s01.dat": undefined } as never;
     expect(() => pack([[row("3001.dat")]], missingSubpart)).toThrowError(
       /parts\/3001\.dat names s\\3001s01\.dat/u,
+    );
+  });
+
+  it("refuses a file that reaches itself, directly or through others, naming the cycle", () => {
+    const selfPart = { ...SYNTHETIC_LIBRARY, "parts/3024.dat": naming("3024.dat") };
+    expect(() => pack([[row("3024.dat")]], selfPart)).toThrowError(
+      /reference cycle: parts\/3024\.dat -> parts\/3024\.dat\. An LDraw loader would expand it forever/u,
+    );
+    const selfModel = new Map([["assembly_0", [row("ASSEMBLY_0")]]]);
+    expect(() => pack([[row("assembly_0")]], SYNTHETIC_LIBRARY, selfModel)).toThrowError(
+      /reference cycle: assembly_0 -> assembly_0\./u,
+    );
+    // Entered through x.dat: the message names the loop, not the way in.
+    const loop = {
+      ...SYNTHETIC_LIBRARY,
+      "parts/x.dat": naming("a.dat"),
+      "parts/a.dat": naming("b.dat"),
+      "parts/b.dat": naming("A.DAT"),
+    };
+    expect(() => pack([[row("3001.dat")], [row("x.dat")]], loop)).toThrowError(
+      /reference cycle: parts\/a\.dat -> parts\/b\.dat -> parts\/a\.dat\./u,
+    );
+    expect(() => pack([[row("x.dat")]], loop)).toThrowError(PlayerModelError);
+  });
+
+  describe("nesting depth", () => {
+    const { maxDepth } = PLAYER_MODEL_LIMITS;
+    /** parts/c0.dat -> c1.dat -> ... : a chain of `length` files. */
+    const chain = (length: number) =>
+      Object.fromEntries(
+        Array.from({ length }, (_, index) => [
+          `parts/c${index}.dat`,
+          index + 1 < length ? naming(`c${index + 1}.dat`) : "0 Leaf\n3 16 0 0 0 1 0 0 0 1 0",
+        ]),
+      );
+    const tooDeep =
+      /nests files more than 64 deep: parts\/c0\.dat -> parts\/c1\.dat -> parts\/c2\.dat -> … 59 more … -> parts\/c62\.dat -> parts\/c63\.dat -> parts\/c64\.dat;/u;
+
+    it("allows a chain of maxDepth files and refuses a longer one, naming it", () => {
+      expect(maxDepth).toBe(64);
+      expect(() => pack([[row("c0.dat")]], chain(maxDepth))).not.toThrow();
+      expect(() => pack([[row("c0.dat")]], chain(maxDepth + 1))).toThrowError(tooDeep);
+    });
+
+    it("measures the longest chain, not the shortest path packing reached a file by", () => {
+      // The main model names c63 before c0, so packing first reaches c63 and c64 one and
+      // two levels down; a loader still expands c0's chain 65 files deep.
+      expect(() =>
+        pack([[row(`c${maxDepth - 1}.dat`)], [row("c0.dat")]], chain(maxDepth + 1)),
+      ).toThrowError(tooDeep);
+    });
+  });
+
+  it("refuses a sub-model named like the main model", () => {
+    const shadow = new Map([["Fixture.ldr", [row("3024.dat")]]]);
+    expect(() => pack([[row("3001.dat")]], SYNTHETIC_LIBRARY, shadow)).toThrowError(
+      /A sub-model is named fixture\.ldr, like the main model/u,
     );
   });
 

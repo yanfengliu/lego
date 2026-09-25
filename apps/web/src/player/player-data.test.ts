@@ -27,6 +27,12 @@ const steps = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/** steps() with `field` merged into its first step. */
+const withStep = (field: Record<string, unknown>): unknown => {
+  const file = steps();
+  return { ...file, steps: [{ ...file.steps[0]!, ...field }, ...file.steps.slice(1)] };
+};
+
 const MPD = [
   "0 FILE main.ldr",
   "0 !COLOUR Red CODE 4 VALUE #C91A09 EDGE #333333",
@@ -67,6 +73,49 @@ describe("the player data contract", () => {
     expect(() => parsePlayerSteps(steps({ set: { ...steps().set, partCount: 4 } }))).toThrow(
       /steps add 3 parts but set\.partCount is 4/u,
     );
+  });
+
+  it("needs only the source-agnostic fields, and takes any short alignment label", () => {
+    const minimal = {
+      version: PLAYER_STEPS_VERSION,
+      set: { id: "x", name: "Synthetic", bookletPages: 2, modelSource: "read", partCount: 3 },
+      steps: [
+        { step: 1, page: 1, partsAdded: 2 },
+        { step: 2, page: 2, partsAdded: 1 },
+      ],
+    };
+    const parsed = parsePlayerSteps(minimal);
+    expect(parsed).toStrictEqual(minimal);
+    expect(stepOfEachPart(MPD.replace("0 STEP\r\n0 STEP", "0 STEP"), parsed)).toEqual([1, 1, 2]);
+    // A booklet reader labels its steps in its own words; the harness's verdicts are not the only ones.
+    expect(parsePlayerSteps(withStep({ alignment: "matched the step panel" })).steps[0]).toEqual({
+      step: 1,
+      page: 1,
+      partsAdded: 2,
+      alignment: "matched the step panel",
+      subBuild: false,
+    });
+  });
+
+  it("still refuses an optional field of the wrong type", () => {
+    expect(() => parsePlayerSteps(withStep({ subBuild: "yes" }))).toThrow(
+      /steps\[0\]\.subBuild is "yes"; expected true or false, or no subBuild field/u,
+    );
+    expect(() => parsePlayerSteps(withStep({ alignment: "" }))).toThrow(
+      /steps\[0\]\.alignment is ""; expected a non-empty string/u,
+    );
+    expect(() => parsePlayerSteps(withStep({ alignment: 7 }))).toThrow(
+      /steps\[0\]\.alignment is 7; expected a non-empty string/u,
+    );
+    expect(() => parsePlayerSteps(withStep({ alignment: "x".repeat(65) }))).toThrow(
+      /steps\[0\]\.alignment is 65 characters long; expected at most 64/u,
+    );
+    expect(() => parsePlayerSteps(steps({ set: { ...steps().set, unplacedParts: -1 } }))).toThrow(
+      /set\.unplacedParts is -1; expected a whole number from 0 to 100000/u,
+    );
+    expect(() =>
+      parsePlayerSteps(steps({ set: { ...steps().set, modelSource: "y".repeat(65) } })),
+    ).toThrow(/set\.modelSource is 65 characters long; expected at most 64/u);
   });
 
   it("refuses a model whose steps disagree with steps.json, or leave rows after the last 0 STEP", () => {

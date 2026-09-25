@@ -12,7 +12,7 @@ npm ci
 npm start
 ```
 
-`npm start` makes the player data current, starts the dev server and opens the player at the URL it prints (`http://127.0.0.1:5173/`; set `PORT` for another port, pass `--no-open` to skip the browser).
+`npm start` makes the player data current, starts the dev server and opens the player at the URL it prints (`http://127.0.0.1:5173/`; set `PORT` for another port; `npm start -- --no-open` skips the browser).
 When the data is missing or stale, it first runs `npm run booklet`, which takes about half a minute.
 
 The data is built from local files that never enter Git: the booklet `recipes/6651557.pdf`, LEGO's official model export in `output/official-model/`, the pinned LDraw parts library `C:/tmp/ldraw-complete-2026-07.zip` (`LEGO_LDRAW_OFFICIAL_ARCHIVE`), and the set's LEGO Builder mesh pack `C:/tmp/lego-21066-builder-native-part-pack.json` (`LEGO_BUILDER_NATIVE_PACK`), which stands in for the six designs the LDraw library lacks.
@@ -25,12 +25,12 @@ The screen is a 3D view of the model built so far, the booklet page for the curr
 - Space plays or pauses, ← and → step, Home and End jump to the ends;
 - the parts a step adds glow for a moment. A sub-build shows in its final position at the steps that build it.
 
-The sets the player knows are listed in `tools/player/sets.ts`. The player's input format, `model.mpd` plus `steps.json` per set, is described in `apps/web/src/player/player-data.ts`.
+The sets the player knows are listed in `tools/player/sets.ts`. The player fetches the set list, then a set's `steps.json`, `model.mpd` and booklet PDF, from the dev server's `/player-data/` routes (`tools/player/serve.ts`). The formats are described in `apps/web/src/player/player-data.ts`.
 The old manual editor still runs at `/editor.html` until it is removed.
 
 ## Booklet tooling
 
-- `npm run booklet` reads booklet 6651557, identifies every callout's part, aligns each printed step to the official model by those parts, checks catalog coverage, and replays the official poses through the brick kernel. It writes `output/booklet/status.json`, the reference build `output/booklet/reference-build.mpd`, and the player data in `output/booklet/player/21066/`. Inputs come from the set's entry in `tools/player/sets.ts`, overridden by `BOOKLET_PDF`, `BOOKLET_LXFML`, `BOOKLET_OFFICIAL_LDRAW` and `BOOKLET_OUT`; `--set <id>` picks another set.
+- `npm run booklet` reads booklet 6651557, identifies every callout's part, aligns each printed step to the official model by those parts (316 of 359 steps; the other 43, where identification flags a callout, by part counts), checks catalog coverage, and replays the official poses through the brick kernel. It writes `output/booklet/status.json`, the reference build `output/booklet/reference-build.mpd`, and the player data in `output/booklet/player/21066/`. Inputs come from the set's entry in `tools/player/sets.ts`, overridden by `BOOKLET_PDF`, `BOOKLET_LXFML`, `BOOKLET_OFFICIAL_LDRAW` and `BOOKLET_OUT`; `npm run booklet -- --set <id>` picks another set.
 - `node scripts/identify-booklet.mjs` identifies every part callout in the booklet by closed-set matching against its own inventory, with no model call, and scores Steps 1-50 against tracked truth. It writes `output/booklet/identify.json`.
 
 The measured position of the booklet pipeline is in [building-system.md](docs/design/building-system.md#executive-status).

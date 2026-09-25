@@ -131,6 +131,8 @@ test("plays, pauses and steps through a build with its buttons, scrubber and key
   await expect(view).toHaveAttribute("data-highlighted-parts", "2");
   await expect(panel).toHaveAttribute("data-rendered-page", "1");
   await expect(page).toHaveTitle("Synthetic fixture · build player");
+  // The 3D view says where its model comes from: the fixture's set.modelSource.
+  await expect(page.locator(".model-source")).toContainText("synthetic e2e fixture");
   // The glow fades after a moment.
   await expect(view).toHaveAttribute("data-highlighted-parts", "0", { timeout: 5_000 });
 
@@ -169,6 +171,22 @@ test("plays, pauses and steps through a build with its buttons, scrubber and key
   await page.keyboard.press("ArrowLeft");
   await expectStep("Step 1 / 3 · page 1 · +2 parts", 2);
 
+  // Space pauses while a button has focus. At 0.5x a step lasts 3 s, so play
+  // cannot leave step 1 on its own during the 3.5 s wait: only the pause keeps
+  // it there. Headless Chromium turns an unhandled Space into the focused
+  // button's click, so this also proves the key handler's preventDefault:
+  // without it the key and the click each toggle, and play goes on.
+  await page.getByRole("combobox").selectOption("0.5");
+  await button("First step").click();
+  await expectStep("Step 1 / 3 · page 1 · +2 parts", 2);
+  await button("Play").click();
+  await expect(button("Pause")).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(button("Play")).toBeVisible();
+  await page.waitForTimeout(3_500);
+  await expectStep("Step 1 / 3 · page 1 · +2 parts", 2);
+  await expect(button("Play")).toBeVisible();
+
   // Play at 4x (0.375 s a step) runs to the last step and stops there.
   await page.getByRole("combobox").selectOption("4");
   await label.click();
@@ -177,22 +195,10 @@ test("plays, pauses and steps through a build with its buttons, scrubber and key
   await expectStep("Step 3 / 3 · page 2 · +1 part", 3);
   await expect(button("Play")).toBeVisible();
 
-  // Space pauses while a button has focus. (Headless Chromium does not turn a
-  // dispatched Space into that button's click, so the preventDefault that stops
-  // a real one is not proven here.)
-  await button("First step").click();
-  await button("Play").click();
-  await expect(button("Pause")).toBeFocused();
-  await page.keyboard.press("Space");
-  await expect(button("Play")).toBeVisible();
-  const paused = await label.textContent();
-  await page.waitForTimeout(1_000);
-  await expect(label).toHaveText(paused!);
-
   // Reset view leaves the step alone.
   await button("Reset view").click();
-  await expect(view).toHaveAttribute("data-step", /^[123]$/u);
-  await expect(label).toHaveText(paused!);
+  await expect(view).toHaveAttribute("data-step", "3");
+  await expectStep("Step 3 / 3 · page 2 · +1 part", 3);
 });
 
 test("says plainly when the player data or the booklet is missing", async ({ page }) => {
@@ -223,4 +229,43 @@ test("says plainly when the player data or the booklet is missing", async ({ pag
     "Player data missing: run npm start.",
   );
   await expect(bare.locator(".player-message")).toContainText("steps.json does not exist");
+});
+
+test("shows the next step's page after a page that could not be drawn", async ({ page }) => {
+  // Step 3 names page 3 of a two-page booklet.
+  const steps = JSON.parse(fixture("steps.json").toString("utf8")) as {
+    set: { bookletPages: number };
+    steps: { page: number }[];
+  };
+  steps.set.bookletPages = 3;
+  steps.steps[2]!.page = 3;
+  await serveFixture(page, {
+    "/player-data/fixture/steps.json": { type: "application/json", body: JSON.stringify(steps) },
+  });
+  await page.goto("/");
+  const panel = page.locator(".page-panel");
+  await expect(panel).toHaveAttribute("data-rendered-page", "1");
+  await page.locator(".step-label").click();
+  await page.keyboard.press("End");
+  await expect(panel).toContainText("The booklet has 2 pages; this step names page 3.");
+  await page.keyboard.press("Home");
+  await expect(panel).not.toContainText("this step names page 3");
+  await expect(panel.locator("canvas")).toBeVisible();
+  await expect(panel).toHaveAttribute("data-rendered-page", "1");
+});
+
+test("redraws the 3D view when the wheel zooms", async ({ page }) => {
+  await serveFixture(page);
+  await page.goto("/");
+  const view = page.locator(".model-view");
+  // Still frames only: the shading is final and the glow has faded.
+  await expect(view).toHaveAttribute("data-shading", "smooth");
+  await expect(view).toHaveAttribute("data-highlighted-parts", "0", { timeout: 10_000 });
+  const canvas = view.locator("canvas");
+  const before = await canvas.screenshot();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -400);
+  await page.waitForTimeout(500);
+  expect((await canvas.screenshot()).equals(before)).toBe(false);
 });

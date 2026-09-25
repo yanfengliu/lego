@@ -14,8 +14,10 @@ const DATA_ROOT = "/player-data";
 /** Seconds per step at 1x. */
 const BASE_SECONDS = 1.5;
 const SPEEDS = [0.5, 1, 2, 4] as const;
-/** Refuse a model file past this many characters rather than hang the page parsing it. */
-const MAX_MODEL_CHARACTERS = 64 * 1024 * 1024;
+/** Refuse a model file past this size rather than hang the page parsing it. */
+const MAX_MODEL_BYTES = 64 * 1024 * 1024;
+/** sets.json and steps.json are a few kilobytes; this bounds a broken or hostile one. */
+const MAX_JSON_BYTES = 8 * 1024 * 1024;
 
 interface Loaded {
   readonly setId: string;
@@ -24,9 +26,23 @@ interface Loaded {
   readonly stepOf: readonly number[];
 }
 
-async function fetchText(url: string): Promise<string> {
+/**
+ * A player-data file as text, refused past maxBytes: by its Content-Length
+ * before the body is read, or by its length after, when no length was sent.
+ */
+async function fetchText(url: string, maxBytes: number): Promise<string> {
   const response = await fetch(url, { cache: "no-store" });
+  const declared = Number(response.headers.get("Content-Length") ?? Number.NaN);
+  const tooLarge = (size: string) =>
+    new Error(
+      `${url} is ${size}, over the player's limit of ${maxBytes} bytes; the player loads only files under that size.`,
+    );
+  if (declared > maxBytes) {
+    await response.body?.cancel();
+    throw tooLarge(`${declared} bytes`);
+  }
   const text = await response.text();
+  if (text.length > maxBytes) throw tooLarge(`${text.length} characters`);
   if (!response.ok) {
     const detail = response.headers.get("Content-Type")?.startsWith("text/plain")
       ? text
@@ -37,17 +53,16 @@ async function fetchText(url: string): Promise<string> {
 }
 
 async function loadPlayerData(): Promise<Loaded> {
-  const index = parsePlayerSetsIndex(JSON.parse(await fetchText(`${DATA_ROOT}/sets.json`)));
+  const index = parsePlayerSetsIndex(
+    JSON.parse(await fetchText(`${DATA_ROOT}/sets.json`, MAX_JSON_BYTES)),
+  );
   const wanted = new URLSearchParams(window.location.search).get("set");
   const set = index.sets.find(({ id }) => id === wanted) ?? index.sets[0];
   if (!set) throw new Error("Player data missing: tools/player/sets.ts lists no set.");
-  const steps = parsePlayerSteps(JSON.parse(await fetchText(`${DATA_ROOT}/${set.id}/steps.json`)));
-  const mpd = await fetchText(`${DATA_ROOT}/${set.id}/model.mpd`);
-  if (mpd.length > MAX_MODEL_CHARACTERS) {
-    throw new Error(
-      `model.mpd is ${mpd.length} characters, over the player's ${MAX_MODEL_CHARACTERS}.`,
-    );
-  }
+  const steps = parsePlayerSteps(
+    JSON.parse(await fetchText(`${DATA_ROOT}/${set.id}/steps.json`, MAX_JSON_BYTES)),
+  );
+  const mpd = await fetchText(`${DATA_ROOT}/${set.id}/model.mpd`, MAX_MODEL_BYTES);
   return { setId: set.id, steps, mpd, stepOf: stepOfEachPart(mpd, steps) };
 }
 

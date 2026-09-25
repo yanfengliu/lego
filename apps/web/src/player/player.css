@@ -71,6 +71,20 @@ body,
   right: 10px;
 }
 
+.model-source {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 150px);
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 80%);
+  color: #4a5058;
+  font-size: 13px;
+  pointer-events: none;
+}
+
 button,
 select {
   font: inherit;

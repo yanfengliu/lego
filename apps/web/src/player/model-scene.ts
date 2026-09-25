@@ -1,6 +1,7 @@
 import {
   AmbientLight,
   Box3,
+  BufferAttribute,
   Color,
   DirectionalLight,
   Group,
@@ -15,11 +16,13 @@ import {
   Sphere,
   Vector3,
   WebGLRenderer,
+  type BufferGeometry,
   type Object3D,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { LDrawLoader } from "three/addons/loaders/LDrawLoader.js";
 import { LDrawConditionalLineMaterial } from "three/addons/materials/LDrawConditionalLineMaterial.js";
+import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 
 import { PlayerDataError } from "./player-data";
 
@@ -34,8 +37,14 @@ import { PlayerDataError } from "./player-data";
  * from VIEW_DIRECTION, until the viewer orbits, pans or zooms; "Reset view"
  * frames the current step again and resumes following.
  *
+ * Loading is kept short: the loader's own normal smoothing took 4.7 s of a
+ * 5.4 s parse of 21066's model.mpd in Node (2026-09-24), so the model is
+ * parsed with flat normals, shown, and then smoothed one part geometry at a
+ * time between frames (smoothShading).
+ *
  * The host element carries what the scene actually shows, for tests and
- * probes: data-step, data-visible-parts and data-highlighted-parts.
+ * probes: data-step, data-visible-parts and data-highlighted-parts, and
+ * data-shading, "flat" until every part is smoothed and "smooth" after.
  */
 export const HIGHLIGHT_HOLD_MS = 2000;
 export const HIGHLIGHT_FADE_MS = 1000;
@@ -44,6 +53,78 @@ const HIGHLIGHT_EMISSIVE = 0.45;
 /** Camera direction from the model's centre, in three's axes (+Y up, +Z toward the default viewer). */
 const VIEW_DIRECTION = new Vector3(-0.2, 0.7, 1).normalize();
 const FIELD_OF_VIEW = 35;
+/**
+ * Faces meeting at less than this angle share a smoothed normal. LDraw's
+ * curved primitives step 22.5 degrees or less; square edges and 45-degree
+ * slopes stay sharp.
+ */
+const CREASE_ANGLE = (30 * Math.PI) / 180;
+/** Positions within 0.01 LDU are one position, as toCreasedNormals rounds them. */
+const POSITION_QUANTUM = (1 + 1e-10) * 1e2;
+/**
+ * A part with more corners than this at one position keeps flat normals,
+ * because creasing is quadratic in that count; 21066's parts have at most 48.
+ */
+const MAX_FAN = 512;
+/** Smoothing runs in slices this long, so frames and input keep flowing. */
+const SLICE_MS = 8;
+
+/** Resolves once the browser has painted: after the next frame, in a task of its own. */
+const afterPaint = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/**
+ * Cuts a part's buffers to the vertices its draw groups cover. For a BFC
+ * NOCERTIFY face, three's LDrawLoader (r185) reserves room for both sides but,
+ * having cloned the parsed part, writes only one, so the buffers end in zeros
+ * no group draws: 9,506 degenerate triangles at the origin in 21066's
+ * model.mpd, which stretched part bounds to the origin and made creasing
+ * quadratic (12,360 corners at one position).
+ */
+function trimToDrawnVertices(geometry: BufferGeometry): void {
+  if (geometry.groups.length === 0) return;
+  const drawn = Math.max(...geometry.groups.map(({ start, count }) => start + count));
+  for (const name of ["position", "normal"]) {
+    const attribute = geometry.getAttribute(name);
+    if (!(attribute instanceof BufferAttribute) || drawn >= attribute.count) continue;
+    const size = attribute.itemSize;
+    geometry.setAttribute(name, new BufferAttribute(attribute.array.slice(0, drawn * size), size));
+  }
+  geometry.boundingBox = null;
+  geometry.boundingSphere = null;
+}
+
+/** The most corners at one rounded position, over-counted when two positions' hashes collide. */
+function largestFan(positions: ArrayLike<number>, corners: number): number {
+  const keys = new Uint32Array(corners);
+  for (let corner = 0; corner < corners; corner += 1) {
+    const x = ~~(positions[3 * corner]! * POSITION_QUANTUM);
+    const y = ~~(positions[3 * corner + 1]! * POSITION_QUANTUM);
+    const z = ~~(positions[3 * corner + 2]! * POSITION_QUANTUM);
+    keys[corner] = Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(z, 83492791);
+  }
+  keys.sort();
+  let largest = 0;
+  let run = 0;
+  for (let corner = 0; corner < corners; corner += 1) {
+    run = corner > 0 && keys[corner] === keys[corner - 1] ? run + 1 : 1;
+    largest = Math.max(largest, run);
+  }
+  return largest;
+}
+
+/** Smooths one part's normals in place, keeping the normal attribute the GPU already holds. */
+function creaseNormals(geometry: BufferGeometry): void {
+  const position = geometry.getAttribute("position");
+  const normal = geometry.getAttribute("normal");
+  if (geometry.index !== null || !(normal instanceof BufferAttribute)) return;
+  if (largestFan(position.array, position.count) > MAX_FAN) return;
+  const creased = toCreasedNormals(geometry, CREASE_ANGLE).getAttribute("normal");
+  (normal.array as Float32Array).set(creased.array as Float32Array);
+  geometry.setAttribute("normal", normal);
+  normal.needsUpdate = true;
+}
 
 export interface ModelScene {
   load(mpd: string, stepOf: readonly number[]): Promise<void>;
@@ -83,6 +164,10 @@ export function createModelScene(host: HTMLElement): ModelScene {
   // Any orbit, pan or zoom by the viewer stops the camera following the build.
   controls.addEventListener("start", () => {
     following = false;
+  });
+  // The wheel zooms inside its own event handler, so tick's controls.update() sees no change.
+  controls.addEventListener("change", () => {
+    dirty = true;
   });
 
   let model: Group | null = null;
@@ -208,10 +293,30 @@ export function createModelScene(host: HTMLElement): ModelScene {
   };
   frame = requestAnimationFrame(tick);
 
+  /** Smooths each part geometry in slices of SLICE_MS, after the flat model has been painted. */
+  const smoothShading = async (geometries: readonly BufferGeometry[]) => {
+    await afterPaint();
+    let sliceStart = performance.now();
+    for (const geometry of geometries) {
+      if (disposed) return;
+      creaseNormals(geometry);
+      dirty = true;
+      if (performance.now() - sliceStart >= SLICE_MS) {
+        await nextTask();
+        sliceStart = performance.now();
+      }
+    }
+    if (!disposed) host.dataset.shading = "smooth";
+  };
+
   return {
     async load(mpd, steps) {
+      // Let "Loading model…" reach the screen before the parse holds the main thread.
+      await afterPaint();
+      if (disposed) return;
       const loader = new LDrawLoader();
       loader.setConditionalLineMaterial(LDrawConditionalLineMaterial);
+      loader.smoothNormals = false;
       const group = await new Promise<Group>((resolve, reject) =>
         loader.parse(mpd, resolve, reject),
       );
@@ -221,6 +326,12 @@ export function createModelScene(host: HTMLElement): ModelScene {
           `model.mpd loaded as ${group.children.length} parts but steps.json lists ${steps.length}; a part file may be missing from it. Regenerate it with npm start.`,
         );
       }
+      // Parts share geometry between copies, so each is trimmed and smoothed once.
+      const geometries = new Set<BufferGeometry>();
+      group.traverse((object) => {
+        if (object instanceof Mesh) geometries.add(object.geometry);
+      });
+      geometries.forEach(trimToDrawnVertices);
       // LDraw is -Y up; a half turn about X makes it three's +Y up without mirroring.
       group.rotation.x = Math.PI;
       scene.add(group);
@@ -229,6 +340,10 @@ export function createModelScene(host: HTMLElement): ModelScene {
       stepOf = steps;
       group.updateMatrixWorld(true);
       partBoxes = parts.map((part) => new Box3().setFromObject(part));
+      host.dataset.shading = "flat";
+      smoothShading([...geometries]).catch((reason: unknown) => {
+        console.warn("The model stays flat-shaded: smoothing its normals failed.", reason);
+      });
     },
     showStep(step) {
       let visible = 0;

@@ -187,6 +187,30 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     expect(status.headline.align.identity).toBeUndefined();
   });
 
+  it("skips the player stage when the LDraw library archive is missing, and fails it when the archive is there but wrong", async () => {
+    // A readable booklet and a faithful export take the run as far as the player stage.
+    writeFileSync(join(dir, "model.ldr"), exportText(exportRows()));
+    writeFileSync(join(dir, "blank.pdf"), blankPdf());
+    process.env.BOOKLET_PDF = join(dir, "blank.pdf");
+    const playerStatus = () =>
+      JSON.parse(readFileSync(join(dir, "out", "status.json"), "utf8")).stages.player;
+    // Exit 1 either way: identification refuses the blank booklet. The player line tells them apart.
+    expect(await runBooklet({ writeBaseline: false })).toBe(1);
+    expect(line("[player]")).toMatch(
+      /^\[player\] not written: skipped \(input absent\): no LDraw library archive at .*absent-ldraw\.zip; set LEGO_LDRAW_OFFICIAL_ARCHIVE to the pinned ldraw-complete-2026-07\.zip/u,
+    );
+    expect(playerStatus().status).toBe("skipped");
+
+    printed = "";
+    writeFileSync(join(dir, "wrong.zip"), "not the pinned archive");
+    process.env.LEGO_LDRAW_OFFICIAL_ARCHIVE = join(dir, "wrong.zip");
+    expect(await runBooklet({ writeBaseline: false })).toBe(1);
+    expect(line("[player]")).toMatch(
+      /^\[player\] FAILED: .*wrong\.zip is 22 bytes at sha256:[0-9a-f]{64}, not the pinned ldraw-complete-2026-07\.zip/u,
+    );
+    expect(playerStatus().status).toBe("failed");
+  });
+
   it("refuses to write its rows where Git would track them", async () => {
     const tracked = join(repositoryRoot, "tools", "booklet", "guard-probe-out");
     process.env.BOOKLET_OUT = tracked;

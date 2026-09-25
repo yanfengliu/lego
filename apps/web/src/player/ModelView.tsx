@@ -10,7 +10,7 @@ export function ModelView({
   source,
 }: {
   readonly mpd: string;
-  /** Where the model came from, in words: the view's title, since it may be a reference build. */
+  /** Where the model came from, in words: shown over the view, since it may be a reference build. */
   readonly source: string;
   readonly stepOf: readonly number[];
   readonly step: number;
@@ -44,7 +44,8 @@ export function ModelView({
   }, [status, step]);
 
   return (
-    <div className="model-view" ref={hostRef} aria-label="3D model" title={source}>
+    <div className="model-view" ref={hostRef} aria-label="3D model">
+      <p className="model-source">{source}</p>
       {status !== "ready" && (
         <p className="panel-message">{status === "loading" ? "Loading model…" : status.error}</p>
       )}

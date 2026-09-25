@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 
 import {
   LDRAW_FRAME_ARCHIVE_PIN,
@@ -26,13 +26,35 @@ import type { LibraryReader } from "./player-model.ts";
  *
  * Both sources are read locally and never committed; the packed model is
  * served only by the local dev server.
+ *
+ * A source that is not there throws a PlayerLibraryError marked `absent`, which
+ * `npm run booklet` reports as a skipped stage; one that is there but unusable
+ * (not the pinned archive, a pack that is not JSON or does not match its own
+ * digest) throws an unmarked one, which fails the stage and the run.
  */
 
 export class PlayerLibraryError extends Error {
   override readonly name = "PlayerLibraryError";
+  /** True when the input is missing, not bad: the stage is skipped rather than failed. */
+  readonly absent: boolean;
+  constructor(message: string, options: { readonly absent?: boolean } = {}) {
+    super(message);
+    this.absent = options.absent ?? false;
+  }
 }
 
 const sha256 = (bytes: Uint8Array) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+
+/** Whether nothing is at `path`; a path that is there but unreadable is not missing. */
+function missing(path: string): boolean {
+  try {
+    statSync(path);
+    return false;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ENOENT" || code === "ENOTDIR";
+  }
+}
 
 export interface PlayerLibrary {
   readonly library: LibraryReader;
@@ -41,9 +63,10 @@ export interface PlayerLibrary {
 
 /** The pinned official archive as a reader, and its colour table. */
 export function openPlayerLibrary(path: string): PlayerLibrary {
-  if (!existsSync(path)) {
+  if (missing(path)) {
     throw new PlayerLibraryError(
       `no LDraw library archive at ${path}; set LEGO_LDRAW_OFFICIAL_ARCHIVE to the pinned ${LDRAW_FRAME_ARCHIVE_PIN.logicalName} (${LDRAW_FRAME_ARCHIVE_PIN.bytes} bytes).`,
+      { absent: true },
     );
   }
   let archive: ReturnType<typeof openExactLdrawArchive>;
@@ -92,7 +115,18 @@ export const EDGE_DEGREES = 25;
 export function builderMeshPart(part: MeshPackPart, binary: Buffer): string {
   const end = part.positionByteOffset + part.positionCount * 12;
   const indexEnd = part.indexByteOffset + part.indexCount * 4;
-  if (part.indexCount % 3 !== 0 || end > binary.length || indexEnd > binary.length) {
+  const counts = [
+    part.positionByteOffset,
+    part.positionCount,
+    part.indexByteOffset,
+    part.indexCount,
+  ];
+  if (
+    !counts.every((value) => Number.isSafeInteger(value) && value >= 0) ||
+    part.indexCount % 3 !== 0 ||
+    end > binary.length ||
+    indexEnd > binary.length
+  ) {
     throw new PlayerLibraryError(`Builder mesh ${part.id} does not fit its pack's binary payload.`);
   }
   const point = (index: number) => {
@@ -155,31 +189,68 @@ export function builderMeshPart(part: MeshPackPart, binary: Buffer): string {
   ].join("\n");
 }
 
+/** A Builder mesh pack is read whole; 21066's is about 2 MB. */
+export const MESH_PACK_MAX_BYTES = 64 * 1024 * 1024;
+
+interface MeshPack {
+  readonly parts: ReadonlyMap<string, MeshPackPart>;
+  readonly binary: Buffer;
+}
+
+function readMeshPack(path: string, design: string): MeshPack {
+  if (missing(path)) {
+    throw new PlayerLibraryError(
+      `no LEGO Builder mesh pack at ${path}; design ${design} has no LDraw file, so its stand-in comes from the set's pack. Set LEGO_BUILDER_NATIVE_PACK to the pack, or fix the manifest's meshFallback.`,
+      { absent: true },
+    );
+  }
+  const unusable = (why: string) =>
+    new PlayerLibraryError(
+      `the Builder mesh pack at ${path} ${why}; point LEGO_BUILDER_NATIVE_PACK at the set's pack.`,
+    );
+  let pack: unknown;
+  try {
+    const stat = statSync(path);
+    if (!stat.isFile()) throw unusable("is not a file");
+    if (stat.size > MESH_PACK_MAX_BYTES) {
+      throw unusable(`is ${stat.size} bytes, over the ${MESH_PACK_MAX_BYTES}-byte limit`);
+    }
+    pack = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    if (error instanceof PlayerLibraryError) throw error;
+    throw unusable(
+      `cannot be read as JSON (${error instanceof Error ? error.message : String(error)})`,
+    );
+  }
+  const { binaryBase64, binarySha256, parts } = (pack ?? {}) as Record<string, unknown>;
+  const isPart = (part: unknown): part is MeshPackPart =>
+    typeof part === "object" &&
+    part !== null &&
+    typeof (part as MeshPackPart).id === "string" &&
+    typeof (part as MeshPackPart).name === "string";
+  if (
+    typeof binaryBase64 !== "string" ||
+    typeof binarySha256 !== "string" ||
+    !Array.isArray(parts) ||
+    !parts.every(isPart)
+  ) {
+    throw unusable(
+      "is not a mesh pack: it needs binaryBase64, binarySha256, and parts each with an id and a name",
+    );
+  }
+  const binary = Buffer.from(binaryBase64, "base64");
+  if (sha256(binary) !== `sha256:${binarySha256}`) {
+    throw unusable("does not match its own binarySha256");
+  }
+  return { parts: new Map(parts.map((part) => [part.id, part] as const)), binary };
+}
+
 /** Stand-in parts from a set's Builder mesh pack, opened on first use; null when the pack lacks the design. */
 export function builderStandIns(path: string): (design: string) => string | null {
-  let parts: ReadonlyMap<string, MeshPackPart> | null = null;
-  let binary: Buffer | null = null;
+  let pack: MeshPack | null = null;
   return (design) => {
-    if (parts === null) {
-      if (!existsSync(path)) {
-        throw new PlayerLibraryError(
-          `design ${design} has no LDraw file, and its stand-in comes from the set's LEGO Builder mesh pack, which is not at ${path}; set LEGO_BUILDER_NATIVE_PACK or the manifest's meshFallback.`,
-        );
-      }
-      const pack = JSON.parse(readFileSync(path, "utf8")) as {
-        binaryBase64: string;
-        binarySha256: string;
-        parts: MeshPackPart[];
-      };
-      binary = Buffer.from(pack.binaryBase64, "base64");
-      if (sha256(binary) !== `sha256:${pack.binarySha256}`) {
-        throw new PlayerLibraryError(
-          `the Builder mesh pack at ${path} does not match its own binarySha256.`,
-        );
-      }
-      parts = new Map(pack.parts.map((part) => [part.id, part] as const));
-    }
-    const part = parts.get(design);
-    return part ? builderMeshPart(part, binary!) : null;
+    pack ??= readMeshPack(path, design);
+    const part = pack.parts.get(design);
+    return part ? builderMeshPart(part, pack.binary) : null;
   };
 }
