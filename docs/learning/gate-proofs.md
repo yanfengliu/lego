@@ -373,6 +373,33 @@ Measured on base `384a70d` with the uncommitted `/31` change applied; each mutat
 - **Red:** `AssertionError: expected [ Array(1) ] to deeply equal []` on `check.staleCorrections`.
 - **Green after revert:** yes.
 
+## Proofs added with catalog `/32`, 2026-09-24
+
+Measured on `69c27ca` (catalog `/32`, committed, clean tree); each mutation backed its files up and restored them byte for byte, checked by digest, and the gate file was run alone.
+
+### A stud seated in a clutch through a validated edge must not collide with the clutch's part, whichever way the clutch faces.
+
+- **Gate:** `packages/brick-kernel/src/clutch-seat-collision-class.test.ts` :: "seats $id by its stud in every catalog clutch through a validated edge without collision" — run by `npm run test`. It seats two 1 x 1 probes by their stud in each of the 1,201 `undersideClutch` connectors of the 106 definitions, two of which face +Z: `plate-1x1` (nominal 6 LDU stud) and `73230` (source radius 6.0001514980873605 LDU with `nominal-stud-tube/1`). Bound: solid inside a seat's tube-seat allowance is relieved by the edge, so a filled seat cavity passes; `catalog-41682.test.ts` checks the recess is empty.
+- **Defect:** booklet step 40 failed `DISCONNECTED_ASSEMBLY`, `PART_BODY_COLLISION` and `PART_STUD_BODY_COLLISION`: `41682` had no clutch in its wall's back recess, and its height-field collision filled the recess and stood two 1-LDU boxes out to z = 5.
+- **Mutation A:** restored `41682`'s `/31` `bodyBoxesLdu` in `packages/catalog/src/part-blueprints-6651557-measured.ts`, keeping the two new clutches.
+- **Red A:** the catalog refuses to load: `MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH: Part builtin:bracket-2x2-1x2-vertical-studs clutch connector undersideClutch:4 seats at Z=4, but 1 body collision primitive(s) stand out to Z=5 along its outward normal [0, 0, 1] inside its 6 LDU stud footprint centred at [-10, -4]`. With that check also disabled (`blocking.length > 0` to `< 0` in `mesh-admission.ts`), both probes fail on `builtin:bracket-2x2-1x2-vertical-studs/undersideClutch:4: PART_BODY_COLLISION Part bodies overlap: host and probe`.
+- **Mutation B:** dropped the two new tube-seat allowances (`measured-part-factory.ts` pushes an allowance only for a three-number row).
+- **Red B:** the catalog refuses: `undersideClutch connector undersideClutch:4 needs exactly one collision allowance naming its portId; found 0 with ids []`, and the same for `:5`. With that count check also disabled, the `73230` probe fails on `builtin:bracket-2x2-1x2-vertical-studs/undersideClutch:4: PART_STUD_BODY_COLLISION Stud probe/stud:0 overlaps body host/body:6` and `.../undersideClutch:5: PART_STUD_BODY_COLLISION Stud probe/stud:0 overlaps body host/body:0`; the nominal plate passes.
+- **Mutation C:** restored the kernel's `body.prismAxis !== stud.axis` refusal in `penetrationCoveredByAllowance` (`packages/brick-kernel/src/collision-world-primitives.ts`), so an allowance covers only a body prism running along the stud.
+- **Red C:** the same two `73230` lines as Red B.
+- **Green after revert:** yes, all 1,201 clutches, both probes.
+- **At `1299598` (`/31`):** the loop found no collision in any of the 1,199 clutches with either probe. The defect was a seat the catalog did not declare, which a loop over declared seats cannot see; the committed gate fails there only on its count of sideways seats (0, expected 2).
+
+### A column height field turns a clip-roundoff sliver into material and fills a cavity that opens sideways.
+
+- **Gate:** `scripts/part_admission_solid_columns_test.py` :: `test_a_clip_sliver_on_a_column_boundary_reaches_no_column` and `test_a_cavity_opening_sideways_stays_empty_where_the_height_field_fills_it` — run by `npm run test:python` through `part_admission_ldraw_candidate_test.py`. Bound: synthetic surfaces, one of them `41682`'s exact wall-top triangulation; it says nothing about a part whose surface is not closed along its columns, which the derivation refuses.
+- **Defect:** `41682`'s `/31` collision stood two 1-LDU boxes out to z = 5 behind its wall (x -17..-16 and -12..-11) and filled the wall's back recess.
+- **Mutation A:** in `_reach` (`scripts/part_admission_solid_columns.py`), counted any clipped piece with positive x and z extent as reaching the column, the height field's span test.
+- **Red A:** `AssertionError: Lists differ: [(-17, 4), (-12, 4)] != []` in the sliver test.
+- **Mutation B:** kept every slab solid, ignoring the winding verdict.
+- **Red B:** `AssertionError: Lists differ: [(0.0, 4.0)] != [(0, 1), (3, 4)]` in the sideways-cavity test, and the candidate test's three boxes collapse to one.
+- **Green after revert:** yes, all 6 tests. These two mutations ran on a scratch copy of the module, so the committed file was never touched.
+
 ## Reach and clause audit of the first pass, 2026-09-02
 
 One mutation proves a gate catches that mutation; it does not prove the reach claimed in prose beside it. And a lesson with several clauses needs a destination for every clause, not one gate that absorbs its siblings. Both were checked against the entries above.

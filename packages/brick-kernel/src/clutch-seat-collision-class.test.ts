@@ -27,10 +27,14 @@ import { validBrickConnections, validateBrickDocument } from "./validation.ts";
  *
  * Bound: the host sits at the origin in upright-yaw-0 and each probe is a 1 x 1
  * part seated alone, so this says nothing about a second part nearby, a host in
- * another orientation, or a probe whose body is wider than one cell. A probe
- * turned to face a sideways seat may take an orientation it does not admit;
- * the document then also reports ILLEGAL_ORIENTATION, which this gate ignores
- * because it tests collision, not placement policy.
+ * another orientation, or a probe whose body is wider than one cell. The edge
+ * relieves any host solid inside the seat's tube-seat allowance, so a filled
+ * seat cavity passes here (catalog-41682.test.ts checks 41682's recess is
+ * empty), and a seat the catalog does not declare is never tried: at /31 this
+ * loop found no collision in any of the 1,199 clutches. A probe turned to face
+ * a sideways seat may take an orientation it does not admit; the document then
+ * also reports ILLEGAL_ORIENTATION, which this gate ignores because it tests
+ * collision, not placement policy.
  */
 const PROBES = [
   { id: "builtin:plate-1x1", stud: "stud:0:0" },
