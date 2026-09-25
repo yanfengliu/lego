@@ -52,7 +52,7 @@ interface ProbeReport {
  */
 test("prints a brick in the booklet's shaded dialect", async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = (await page.evaluate(

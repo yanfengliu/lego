@@ -14,7 +14,7 @@ const DEPTH_NARROWING_MODULE_URL = workspaceModuleUrl(
 const CONTRACT_MODULE_URL = workspaceModuleUrl("apps/web/e2e/real-build-contract.ts");
 
 test("reuses an isolated real-brick probe while preserving whole-scene masks", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const report = await page.evaluate(
     async ({ kernelUrl, commandsUrl, renderingUrl, narrowingUrl, contractUrl }) => {
       const kernel = await import(/* @vite-ignore */ kernelUrl);
@@ -161,7 +161,7 @@ test("reuses an isolated real-brick probe while preserving whole-scene masks", a
 test("does not reuse one occupancy key for visually different exact probe transforms", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const report = await page.evaluate(
     async ({ kernelUrl, commandsUrl, renderingUrl, narrowingUrl, contractUrl, assemblyUrl }) => {
       const kernel = await import(/* @vite-ignore */ kernelUrl);
@@ -312,7 +312,7 @@ test("does not reuse one occupancy key for visually different exact probe transf
 test("preserves whole-scene probe semantics when the prefix already contains magenta", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const report = await page.evaluate(
     async ({ kernelUrl, commandsUrl, renderingUrl, narrowingUrl, contractUrl }) => {
       const kernel = await import(/* @vite-ignore */ kernelUrl);

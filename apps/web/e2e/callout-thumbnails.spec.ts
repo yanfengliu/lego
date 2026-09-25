@@ -157,7 +157,7 @@ test("publishes typed evidence for every distinct Nx label", async ({ page }) =>
   const keepLegacyIdentities = new Set(CALLOUT_RECOVERY_BY_IDENTITY.keys());
 
   try {
-    await page.goto("/");
+    await page.goto("/editor.html");
     for (const pageNumber of processingPages) {
       const sourcePage = source.pages.find((candidate) => candidate.pageNumber === pageNumber)!;
       const allLabels = distinctLabels(pageNumber, sourcePage.textElements);

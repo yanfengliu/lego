@@ -24,7 +24,7 @@ test("records renderer compatibility with the explicit highlight policy", async 
     "Retained compatibility evidence is regenerated only by an explicit evidence-update run.",
   );
   test.setTimeout(120_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   const renderCasesBytes = await captureHighlightExclusivityRenderCases(page, {
     contractUrl: workspaceModuleUrl("apps/web/e2e/real-build-contract.ts"),
     kernelUrl: BRICK_KERNEL_MODULE_URL,

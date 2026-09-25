@@ -16,6 +16,7 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "node tools/player/start.mjs",
     "dev": "npm run dev --workspace @lego-studio/web",
     "build": "npm run typecheck && npm run build --workspace @lego-studio/web && node scripts/check-production-bundle.mjs",
     "bom:check": "node scripts/check-bom.mjs",

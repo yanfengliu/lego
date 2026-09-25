@@ -28,7 +28,7 @@ const HEIGHT = 700;
  */
 test("renders a whole model on the booklet's exact palette", async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(

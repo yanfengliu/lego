@@ -75,7 +75,7 @@ test("records the exact step-18 clip mismatch without weakening component parity
   skipWithoutRunEvidence(test, "reads the sample booklet to replay the step-18 clip", {
     onlyIf: hasSampleBooklet,
   });
-  await page.goto("/");
+  await page.goto("/editor.html");
   const urls = bookletProbeUrls();
   const input: SourceReplayInput = {
     ...urls,

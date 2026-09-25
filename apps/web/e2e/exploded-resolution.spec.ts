@@ -34,7 +34,7 @@ const HEIGHT = 420;
  */
 test("resolves an exploded step from the next step's panel", async ({ page }) => {
   test.setTimeout(900_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(measureExplodedResolution, {

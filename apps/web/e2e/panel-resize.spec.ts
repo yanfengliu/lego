@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const SHOTS = "output/shots";
 
 test("resizes both side panels by dragging their splitters", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
   const catalog = page.locator(".catalog-panel");

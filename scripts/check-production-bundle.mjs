@@ -13,18 +13,35 @@ const forbiddenAutomationTokens = [
   "ldraw-source-resolution-only",
 ];
 
-async function javascriptFiles(directory) {
+/**
+ * The build player's data (a set's model, steps and booklet) is served by the
+ * dev server alone (tools/player/serve.ts), from ignored folders; no file of
+ * it, and no path into those folders, may ship in the production build.
+ */
+const forbiddenDataExtensions = [".mpd", ".ldr", ".dat", ".pdf"];
+const forbiddenDataPaths = ["output/booklet/player", "official-model", "recipes/"];
+
+async function distFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await javascriptFiles(path)));
-    else if (entry.isFile() && entry.name.endsWith(".js")) files.push(path);
+    if (entry.isDirectory()) files.push(...(await distFiles(path)));
+    else if (entry.isFile()) files.push(path);
   }
   return files;
 }
 
-const files = await javascriptFiles(distDirectory);
+const everything = await distFiles(distDirectory);
+const shippedData = everything.filter((file) =>
+  forbiddenDataExtensions.some((extension) => file.toLowerCase().endsWith(extension)),
+);
+if (shippedData.length > 0) {
+  throw new Error(
+    `Production build ships player data files, which only the dev server may serve: ${shippedData.join(", ")}`,
+  );
+}
+const files = everything.filter((file) => file.endsWith(".js"));
 if (files.length === 0) throw new Error("Production build contains no JavaScript assets");
 
 for (const file of files) {
@@ -33,6 +50,12 @@ for (const file of files) {
   if (exposed.length > 0) {
     throw new Error(
       `Production bundle exposes development automation tokens: ${exposed.join(", ")}`,
+    );
+  }
+  const dataPaths = forbiddenDataPaths.filter((path) => source.includes(path));
+  if (dataPaths.length > 0) {
+    throw new Error(
+      `Production bundle ${file} names player data paths only the dev server may use: ${dataPaths.join(", ")}`,
     );
   }
 }

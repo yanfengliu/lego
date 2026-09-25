@@ -17,7 +17,7 @@ const REDUCTION_MODULE_URL: string = "/e2e/real-build-step-one-proper-c4-render-
 const SCREENSHOT = "output/playwright/step-one-proper-c4-equivariance.png";
 
 test("proper-C4 rotation is exactly equivariant across the real D4 renderer", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync("output/playwright", { recursive: true });
   const report = await page.evaluate(
     async (input) => {

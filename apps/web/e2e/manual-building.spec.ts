@@ -27,7 +27,7 @@ test("builds a model by clicking the palette and the viewport", async ({ page })
   });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Reset scene" }).click();
@@ -89,7 +89,7 @@ test("builds a model by clicking the palette and the viewport", async ({ page })
 });
 
 test("steps through the build it just made", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Reset scene" }).click();
@@ -116,7 +116,7 @@ test("steps through the build it just made", async ({ page }) => {
 });
 
 test("never leaves a brick floating, wherever the user clicks", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Reset scene" }).click();

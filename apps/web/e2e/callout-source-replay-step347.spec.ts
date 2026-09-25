@@ -74,7 +74,7 @@ test("coalesces only the left page-214 inner detail and replays step 347 exactly
   skipWithoutRunEvidence(test, "reads the sample booklet to replay step 347", {
     onlyIf: hasSampleBooklet,
   });
-  await page.goto("/");
+  await page.goto("/editor.html");
   const urls = bookletProbeUrls();
   const input: SourceReplayInput = {
     ...urls,

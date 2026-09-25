@@ -29,7 +29,7 @@ const EXPECTED_PANEL_DIGESTS = [
 type ExactThreeCapture = Awaited<ReturnType<typeof captureRealBuildExactThreeSourceInBrowser>>;
 
 test("loads the exact-three source capture without reading the real PDF", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const exportType = await page.evaluate(async (runnerUrl) => {
     const runner = await import(/* @vite-ignore */ runnerUrl);
     return typeof runner.captureRealBuildExactThreeSourceInBrowser;
@@ -38,7 +38,7 @@ test("loads the exact-three source capture without reading the real PDF", async 
 });
 
 test("refuses an accessor-bearing panel before importing caller module URLs", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(async (runnerUrl) => {
     const runner = await import(/* @vite-ignore */ runnerUrl);
     const digest = `sha256:${"0".repeat(64)}`;
@@ -92,7 +92,7 @@ test("refuses an accessor-bearing panel before importing caller module URLs", as
 });
 
 test("snapshots inputs before await and closes its exact browser resources", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(async (runnerUrl) => {
     const runner = await import(/* @vite-ignore */ runnerUrl);
     const moduleUrl = (source: string) =>
@@ -276,7 +276,7 @@ test("captures fresh page-11 RGBA for exact panels 2, 3 and 4", async ({ page })
     panels: panels as unknown as RealBuildExactThreeSourceBrowserInput["panels"],
   };
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   const wire = await page.evaluate(
     async ({ runnerUrl, captureInput }) => {
       const runner = await import(/* @vite-ignore */ runnerUrl);

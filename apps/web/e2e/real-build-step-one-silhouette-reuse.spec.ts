@@ -17,7 +17,7 @@ const CONTRACT_MODULE_URL: string = "/e2e/real-build-contract.ts";
 const SCREENSHOT = "output/playwright/step-one-scene-reuse.png";
 
 test("reuses one real scene across the exact eight camera hypotheses", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync("output/playwright", { recursive: true });
   const report = await page.evaluate(
     async (input) => {

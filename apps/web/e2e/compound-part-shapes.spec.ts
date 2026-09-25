@@ -121,7 +121,7 @@ test("every compound part draws its own shape, not the box it sits in", async ({
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
   page.on("dialog", (dialog) => void dialog.accept());
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
   for (const { name, partId, plain } of CASES) {
@@ -163,7 +163,7 @@ test("every compound part draws its own shape, not the box it sits in", async ({
 
 test("the palette tile shows the same shape the viewport places", async ({ page }) => {
   mkdirSync(OUT, { recursive: true });
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
   for (const { name, partId } of CASES) {
@@ -201,7 +201,7 @@ test("palette previews and placed models retain their measured outline", async (
   test.setTimeout(300_000);
   mkdirSync(OUT, { recursive: true });
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 
   for (const { name, partId, preview } of MEASURED_OUTLINE_CASES) {

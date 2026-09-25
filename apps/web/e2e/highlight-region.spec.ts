@@ -23,7 +23,7 @@ test("fills the region each step's highlight encloses", async ({ page }) => {
   skipWithoutRunEvidence(test, "reads the sample booklet to fill each step's highlight region", {
     onlyIf: hasSampleBooklet,
   });
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
   const scoreboard: unknown[] = [];
 

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const SHOTS = "output/shots";
 
 async function ready(page: Page): Promise<void> {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
 }
 

@@ -90,7 +90,7 @@ test("registers consecutive printed panels onto one frame", async ({ page }) => 
       },
     });
   });
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(measureRealPanelRegistration, {
     ...bookletProbeUrls(),
     latticeUrl: LATTICE_MODULE_URL,

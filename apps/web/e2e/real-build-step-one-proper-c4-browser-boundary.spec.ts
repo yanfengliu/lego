@@ -5,7 +5,7 @@ const DATA_MODULE_URL: string = "/e2e/real-build-step-one-proper-c4-data-snapsho
 test("proper-C4 browser snapshots reject unowned Proxies without invoking traps", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(async (moduleUrl) => {
     const boundary = await import(/* @vite-ignore */ moduleUrl);
     let objectTraps = 0;

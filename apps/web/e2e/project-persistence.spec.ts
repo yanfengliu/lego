@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("persists exact editor state and undo history across reloads", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await expect(page.getByText("0 parts · saved locally")).toBeVisible();
 
   await page.getByRole("button", { name: "Place at origin" }).click();
@@ -27,7 +27,7 @@ test("keeps the manual editor available when browser persistence is unavailable"
     Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined });
   });
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   await expect(page.getByRole("heading", { name: "Brick Studio" })).toBeVisible();
   await expect(page.getByText("0 parts · session only")).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("IndexedDB is unavailable");
@@ -37,7 +37,7 @@ test("keeps the manual editor available when browser persistence is unavailable"
 });
 
 test("enforces IndexedDB compare-and-swap and preserves corrupt rows", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   await expect(page.getByText("0 parts · saved locally")).toBeVisible();
 
   const result = await page.evaluate(async () => {
@@ -119,7 +119,7 @@ test("enforces IndexedDB compare-and-swap and preserves corrupt rows", async ({ 
 });
 
 test("closes its database connection when a schema version changes", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const upgraded = await page.evaluate(async () => {
     const repositoryModulePath = "/src/persistence/indexeddb-project-repository.ts";
     const { IndexedDbProjectRepository } = await import(/* @vite-ignore */ repositoryModulePath);

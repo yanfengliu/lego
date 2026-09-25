@@ -1,8 +1,20 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+import { playerDataPlugin } from "../../tools/player/serve.ts";
+
+const page = (name: string) => fileURLToPath(new URL(name, import.meta.url));
+
 export default defineConfig({
-  plugins: [react()],
+  // The build player (index.html) and its dev-only data routes; the old editor lives at /editor.html.
+  plugins: [react(), playerDataPlugin()],
+  build: {
+    rollupOptions: {
+      input: { player: page("index.html"), editor: page("editor.html") },
+    },
+  },
   /**
    * Keep the workspace packages and their hashing dependency out of the
    * dependency pre-bundle, so a bare import resolves to the source file that

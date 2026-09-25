@@ -17,7 +17,7 @@ test("measures how the step highlight segments", async ({ page }) => {
   skipWithoutRunEvidence(test, "reads the sample booklet to probe step highlight segmentation", {
     onlyIf: hasSampleBooklet,
   });
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync("output", { recursive: true });
   const scoreboard: unknown[] = [];
 

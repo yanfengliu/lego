@@ -1,0 +1,16 @@
+{
+  "version": "lego.player-steps/1",
+  "set": {
+    "id": "fixture",
+    "name": "Synthetic fixture",
+    "bookletPages": 2,
+    "modelSource": "synthetic e2e fixture",
+    "partCount": 3,
+    "unplacedParts": 0
+  },
+  "steps": [
+    { "step": 1, "page": 1, "partsAdded": 2, "alignment": "identity", "subBuild": false },
+    { "step": 2, "page": 1, "partsAdded": 0, "alignment": "count-fallback", "subBuild": false },
+    { "step": 3, "page": 2, "partsAdded": 1, "alignment": "identity", "subBuild": true }
+  ]
+}

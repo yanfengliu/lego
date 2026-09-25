@@ -25,7 +25,7 @@ const HEIGHT = 480;
  */
 test("recovers the view a model was drawn from", async ({ page }) => {
   test.setTimeout(300_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(

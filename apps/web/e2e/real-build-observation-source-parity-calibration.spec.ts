@@ -47,7 +47,7 @@ const CANDIDATE_MODULE_URL = workspaceModuleUrl(
 );
 
 test("loads the exact-five calibration runner without invoking measurement", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const exportType = await page.evaluate(async (moduleUrl) => {
     const module = await import(/* @vite-ignore */ moduleUrl);
     return typeof module.runRealBuildObservationSourceParityCalibrationInBrowser;
@@ -75,7 +75,7 @@ windowsTest(
         new TextEncoder().encode('export const observed = "workspace-contained-mirror";\n'),
         { label: "source-parity execution serving probe" },
       );
-      await page.goto("/");
+      await page.goto("/editor.html");
       const moduleUrl = `/@fs/${directory.replaceAll("\\", "/")}/source-snapshot/probe.mjs`;
       const observed = await page.evaluate(async (url) => {
         const module = await import(/* @vite-ignore */ url);
@@ -89,7 +89,7 @@ windowsTest(
 );
 
 test("constructs the five-role browser capture from a tiny synthetic raster", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(
     async ({ captureUrl, assemblyUrl, candidateUrl }) => {
       const [capture, assembly, candidateModule] = await Promise.all([

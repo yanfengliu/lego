@@ -119,7 +119,7 @@ test("plays the booklet reference build one printed step at a time", async ({ pa
     ).toMatch(new RegExp(`^step ${leftOut.step}: \\S`, "u"));
   }
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
   page.on("dialog", (dialog) => void dialog.accept());
   await page.locator('input[type="file"][accept=".ldr,.mpd,text/plain"]').setInputFiles(MPD);

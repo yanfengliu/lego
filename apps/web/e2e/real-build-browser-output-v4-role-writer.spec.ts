@@ -12,7 +12,7 @@ const TWO_STEP_FIXTURE_URL = workspaceModuleUrl(
 test("loads the branch-role writer in the served browser without granting authority", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const observed = await page.evaluate(async (moduleUrl) => {
     const writer = await import(/* @vite-ignore */ moduleUrl);
     const request = writer.createRealBuildBrowserBranchRoleWriterRequest();
@@ -69,7 +69,7 @@ test("loads the branch-role writer in the served browser without granting author
 });
 
 test("finalizes a nonempty dense compiled role in the served browser", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const observed = await page.evaluate(
     async (urls) => {
       const [writer, twoStepFixture] = await Promise.all([

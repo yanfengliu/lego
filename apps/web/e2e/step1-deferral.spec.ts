@@ -108,7 +108,7 @@ test("what step 2 says about step 1's candidates", async ({ page }) => {
     };
   });
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   const result = await page.evaluate(
     async (input) => {
       const pdfjs = await import(/* @vite-ignore */ input.pdfjsUrl);

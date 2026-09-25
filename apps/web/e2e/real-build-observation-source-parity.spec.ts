@@ -38,7 +38,7 @@ const CANDIDATE_MODULE_URL = workspaceModuleUrl(
 test("loads the served source-parity runner and candidate modules without starting the probe", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/editor.html");
   const exportTypes = await page.evaluate(
     async ({ runnerUrl, candidateUrl }) => {
       const [runner, candidate] = await Promise.all([

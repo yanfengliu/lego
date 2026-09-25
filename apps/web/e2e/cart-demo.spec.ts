@@ -22,7 +22,7 @@ const SESSION_MODULE_URL: string = "/src/physics/simulation-session.ts";
  */
 test("builds a cart, drops it, and puts it back", async ({ page }) => {
   test.setTimeout(300_000);
-  await page.goto("/");
+  await page.goto("/editor.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(

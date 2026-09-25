@@ -146,7 +146,7 @@ test("fits the camera a printed step panel was drawn with", async ({ page }) => 
     .sort((left, right) => left.stepNumber - right.stepNumber);
   expect(panels.length).toBeGreaterThan(0);
 
-  await page.goto("/");
+  await page.goto("/editor.html");
   const reports: PanelFitReport[] = [];
 
   // One evaluate per booklet page, not one per panel. The page raster and the
