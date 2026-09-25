@@ -3,7 +3,7 @@
 Status: active
 Owner: Claude Code session 472890e3 (coordinator)
 Created: 2026-09-22
-Updated: 2026-09-24
+Updated: 2026-09-25
 
 ## New goal (owner, 2026-09-24): the build player
 
@@ -12,7 +12,7 @@ The owner's words: "This project now does one thing only: It plays the build ste
 Milestones:
 
 1. **The build player for 21066** (done in this milestone's commits). `npm start` regenerates stale player data with `npm run booklet`, then serves the player: a 3D view (three's LDrawLoader, orbit, pan, zoom, reset view) beside the booklet page (pdf.js), first, previous, play/pause with a speed choice, next and last, a scrubber, the label `Step N / 359 · page P · +K parts`, keyboard control, and a glow on the parts each step adds. The data is LEGO's official model, each brick at its official LDraw pose with the labelled frame corrections (41682, 77844, 80015), grouped into printed steps by the harness's alignment (316 of 359 steps by identity, 43 by count fallback), one `0 STEP` per printed step, packed with the pinned official LDraw library. The six designs that library lacks (6801, 7236, 7302, 7562, 8172, 89680; 32 parts) are labelled stand-ins from the set's LEGO Builder mesh pack, posed from the LXFML: the Parts Tracker's unofficial files for 6801, 7236 and 7302 are drawn in another frame, and 7236 stood 240 LDU out of the model. The editor moved to `/editor.html`.
-2. **Delete the editor UI** (next): the manual editor's page and components only, not the reading pipeline, kernel or catalog.
+2. **Delete the editor UI** (done, milestone 2b, this branch): `/editor.html`, `App.tsx` and everything reachable only from them — `components/`, `viewport/`, `persistence/`, `physics/cart-demo.*`, `automation`, `catalog-search`, `editor-state`, `file-import`, `migration-notice`, `viewport-navigation`, `mesh-part-alignment.test.tsx`, both stylesheets — are gone (59 files, ~8,800 lines). `placement`, `manual-commands` and the connector modules `assembly/` also imports stayed, since deleting them would have broken the kept pipeline. 6 Playwright specs that drove editor UI were deleted with it; 32 specs that drive reading-pipeline behaviour through `/editor.html` (now 404) are left for the coordinator to port rather than deleted.
 3. **Later improvements**, not yet planned: show a sub-build apart from the model at the steps that build it (v1 shows its parts in final position; 259 of 359 steps build one, by the LXFML's sub-build structure below the wrapper every brick shares); play another set once its booklet can be read and executed reliably.
 
 ## Problem and outcome
@@ -87,7 +87,7 @@ Todo:
 - [ ] G3d camera fit (fed) and placement (fed) scored against the key.
 - [ ] G3e ratchet baseline (today `status/booklet-baseline.json` is reported, not enforced); retire the real-build-* family.
 - [x] G3f-3 move the Playwright specs gated on booklet existence (`hasSampleBooklet`) to the `LEGO_RUN_EVIDENCE` opt-in (da37b92): 24 of 26 converted, one compound case kept its onlyIf, `real-build-step7-gate3-diagnostic.spec.ts` left alone since it already fails loudly rather than skipping; the class check now scans Playwright's spec population too.
-- [ ] Editor centre-seat placement: the editor cannot hand-place a part on the 15573 centre seat (the `snapPlacementOrigin` lattice).
+- [x] Editor centre-seat placement: moot — the editor that could not hand-place a part on the 15573 centre seat was deleted (milestone 2b).
 - [ ] App recovery for refused documents: the app offers no way forward for any document the migration refuses.
 - [ ] Run `npm run evidence:budget` automatically (session start or a hook); today it runs only when invoked.
 - [ ] G4 canon candidates.

@@ -26,7 +26,6 @@ The screen is a 3D view of the model built so far, the booklet page for the curr
 - the parts a step adds glow for a moment. A sub-build shows in its final position at the steps that build it.
 
 The sets the player knows are listed in `tools/player/sets.ts`. The player fetches the set list, then a set's `steps.json`, `model.mpd` and booklet PDF, from the dev server's `/player-data/` routes (`tools/player/serve.ts`). The formats are described in `apps/web/src/player/player-data.ts`.
-The old manual editor still runs at `/editor.html` until it is removed.
 
 ## Booklet tooling
 

@@ -4,6 +4,8 @@ Date: 2026-07-09 · Revised 2026-09-24
 
 This document owns the product, domain, trust and authority contracts for the manual editor and the booklet build loop. It is not a status report. Where the booklet loop stands is the executive status in [`building-system.md`](building-system.md#executive-status), measured by `npm run booklet`; the active plan is [`docs/work/1_booklet-reset/plan.md`](../work/1_booklet-reset/plan.md). History, including the retired first-50 campaign, is in [`docs/devlog/summary.md`](../devlog/summary.md) and on branch `archive/first50-campaign-wip-20260908` (`f44f1b8`).
 
+**Note (2026-09-25, milestone 2b):** surface 1 below, the manual editor UI, was deleted; `/editor.html` and its components are gone, and product code is now the build player (`apps/web/src/player/`) plus surface 2, the booklet build loop, kept general for later sets. This document is not rewritten for that change — its editor-specific sections describe removed code. See `AGENTS.md` and [`docs/policies/local-rules.md#the-product`](../policies/local-rules.md#the-product) for the current product.
+
 ## Decision summary
 
 This repository is scoped to two surfaces and nothing else; the next section says what of each is current.

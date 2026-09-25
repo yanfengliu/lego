@@ -8,11 +8,11 @@ import { playerDataPlugin } from "../../tools/player/serve.ts";
 const page = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
 export default defineConfig({
-  // The build player (index.html) and its dev-only data routes; the old editor lives at /editor.html.
+  // The build player (index.html) and its dev-only data routes.
   plugins: [react(), playerDataPlugin()],
   build: {
     rollupOptions: {
-      input: { player: page("index.html"), editor: page("editor.html") },
+      input: { player: page("index.html") },
     },
   },
   /**

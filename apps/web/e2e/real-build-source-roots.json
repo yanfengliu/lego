@@ -2,7 +2,6 @@
   "schemaVersion": "lego.real-build-source-roots/1",
   "roots": [
     "apps/web/e2e",
-    "apps/web/editor.html",
     "apps/web/index.html",
     "apps/web/node_modules/.vite",
     "apps/web/package.json",

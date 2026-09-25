@@ -40,7 +40,6 @@ const bytePreservingSourcePath = (path) =>
   [
     "apps/web/src/assembly/enumerate-placements.test.ts",
     "apps/web/src/manual-commands.test.ts",
-    "apps/web/src/viewport/placement-ghost.ts",
     "packages/brick-kernel/src/build-sequence.ts",
     "scripts/proper_orientations_generated.py",
     ...outOfCensusBytePreservingControls,

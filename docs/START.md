@@ -4,7 +4,7 @@ Read this file, [`docs/policies/local-rules.md`](policies/local-rules.md) and [`
 
 ## What the product is
 
-A build player for LEGO set 21066 ([local-rules](policies/local-rules.md#the-product)): `npm start` plays it step by step beside the booklet page, from LEGO's official model packed with LDraw parts. The pipeline meant to read and build a set from its booklet stays general, since other sets are deferred, not dropped; its placement is experimental and fail-closed ([building-system.md](design/building-system.md)). The manual editor UI (`/editor.html`) is out of scope and goes in milestone 2.
+A build player for LEGO set 21066 ([local-rules](policies/local-rules.md#the-product)): `npm start` plays it step by step beside the booklet page, from LEGO's official model packed with LDraw parts. The pipeline meant to read and build a set from its booklet stays general, since other sets are deferred, not dropped; its placement is experimental and fail-closed ([building-system.md](design/building-system.md)).
 
 The versioned `BrickDocument` part-and-connection graph is the pipeline's truth; scenes, renders, LDraw files and model answers derive from it. The booklet is its input; the official LEGO model is the scoring answer key and the player's reference build, never a builder input ([local-rules](policies/local-rules.md#the-booklet-and-the-reference)).
 
@@ -20,7 +20,7 @@ The versioned `BrickDocument` part-and-connection graph is the pipeline's truth;
 ## Where code lives
 
 - `tools/player/`: set manifest `sets.ts`, dev-only `/player-data/` routes `serve.ts`, staleness stamp `freshness.ts`, `npm start`.
-- `apps/web/src`: the build player (`player/`, the default page, fed only by the `/player-data/` routes), the old editor at `/editor.html` and the booklet loop — `instructions/` reads the PDF (pages, steps, callouts, inventory), `instructions/identify/` matches each callout to an inventory part, `assembly/` searches and scores placements against panels.
+- `apps/web/src`: the build player (`player/`, the default page, fed only by the `/player-data/` routes) and the booklet loop — `instructions/` reads the PDF (pages, steps, callouts, inventory), `instructions/identify/` matches each callout to an inventory part, `assembly/` searches and scores placements against panels.
 - `apps/web/e2e` and `apps/web/test`: Playwright specs and the experimental real-build family (`real-build-*`), and Vitest contract tests for that family.
 - `apps/companion`: artifact store, test run ledger and test recorder as a library; the planned home of the trust broker.
 - `packages/`: `protocol` (versioned JSON Schema, generated types and validators), `brick-kernel` (documents, commands, compiler, patches, validation, migrations, `compareBuilds`), `catalog` (parts, colours, geometry, connectors, collision, licences), `rendering` (Three.js derivation, canonical captures, render packets).

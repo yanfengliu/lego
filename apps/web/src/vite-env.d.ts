@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
 
-import type { ModelSnapshot } from "./automation";
-
-declare global {
-  interface Window {
-    render_app_to_text?: () => string;
-    capture_model_views?: () => Promise<Record<string, string>>;
-    get_model_snapshot?: () => ModelSnapshot;
-    advanceTime?: (milliseconds: number) => Promise<ModelSnapshot>;
-  }
+interface Window {
+  /**
+   * The deleted editor's automation bridge (`automation.ts`, milestone 2b)
+   * set this; two reading-pipeline specs still poll it through `/editor.html`
+   * (`apps/web/e2e/instructions.spec.ts`, `reference-build-playback.spec.ts`).
+   * They are reported, not deleted, as coverage to port; this type-only stub
+   * keeps them compiling until that port happens, and implements nothing.
+   */
+  get_model_snapshot?: () => { readonly partCount: number };
 }
