@@ -136,15 +136,15 @@
       "corrections": ["77844 (pin)", "80015 (review)", "41682 (review)"],
       "corrected": {
         "stepsReplayed": 359,
-        "validSteps": 39,
-        "invalidSteps": 5,
+        "validSteps": 44,
+        "invalidSteps": 0,
         "blockedSteps": 315,
-        "validThrough": 39,
-        "firstNonValid": "40 invalid",
-        "firstInvalid": 40,
+        "validThrough": 44,
+        "firstNonValid": "45 catalog-blocked",
+        "firstInvalid": null,
         "firstBlocked": 45,
-        "stepsAddingIssues": 1,
-        "partsThroughValid": 265
+        "stepsAddingIssues": 0,
+        "partsThroughValid": 280
       },
       "frames": {
         "meshAssetFrame": 198,

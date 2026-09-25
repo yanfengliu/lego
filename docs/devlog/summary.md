@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- [2026-09-24 (frontier 3, catalog /32)](detailed/2026-09-24_2026-09-24.md) — 41682 gains recess clutches and solid-interval collision; sub-builds join at the booklet's step. Valid through 39 → 44 (280 parts), first blocked 45; reference build 1-37 → 1-44 (stop was its one document, not timing).
 - [2026-09-24 (renderer handedness)](detailed/2026-09-24_2026-09-24.md) — LDU reached Three as (x,-y,z), a reflection: every model drew mirrored, step 31 flipped against page 35. Now the half-turn (x,-y,-z) everywhere; `lego.rendering/2`; det, chiral-pair and pick gates.
 - [2026-09-24 (physics tilt handedness)](detailed/2026-09-24_2026-09-24.md) — Session forwarded Rapier's raw sim-frame rotation unconverted, tilting bodies backwards; now converted at the session boundary, with a tilt-direction gate and a strengthened picking gate.
 - [2026-09-24 (batch 4, identity alignment + catalog `/31` integrated)](detailed/2026-09-24_2026-09-24.md) — Merged: valid through 39 (not 32 alone), first invalid step 40 `DISCONNECTED_ASSEMBLY` (41682 flange). Reference build in-app reaches only 1-37, 2 steps short.
