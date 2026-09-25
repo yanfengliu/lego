@@ -262,12 +262,13 @@ describe("15254 thin-top arch catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /31 projection of the /17 prefix under its historical truth label", () => {
-    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
-    // removing those and restoring the /30 label reproduces the /30 pins.
+  it("pins the reviewed /32 projection of the /17 prefix under its historical truth label", () => {
+    // /32 moves no part of this prefix, only the label. /31 moved these with
+    // seven parts' nominal-stud-tube/1 stud profiles; removing those and
+    // restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 89);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/31",
+      "builtin.basic-parts/32",
       "builtin.basic-parts/17",
     );
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));

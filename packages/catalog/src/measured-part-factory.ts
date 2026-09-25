@@ -7,16 +7,13 @@ import {
   LDRAW_BUNDLED_GEOMETRY_PROVENANCE,
   MEASURED_PART_CATALOG_PROVENANCE,
   PROPER_ORIENTATIONS,
-  STUD_HEIGHT_LDU,
   STUD_PITCH_LDU,
-  STUD_RADIUS_LDU,
 } from "./constants.ts";
 import type {
   CollisionAllowance,
   CollisionPrimitive,
   ConnectorPortDefinition,
   LduBounds,
-  LduVector3,
   MeshReferenceGeometryRecipe,
   PartDefinition,
   SourceProvenance,
@@ -35,6 +32,7 @@ import { meshAssetContentHash, resolvePreloadedMeshAsset } from "./mesh-assets.t
 import { compileMeasuredSourceConnector } from "./measured-source-connector.ts";
 import { compileThroughAxleBoreCollisionAllowance } from "./through-axle-bore-collision.ts";
 import { meshUndersideIsDrawn } from "./mesh-underside.ts";
+import { compileMeasuredClutch, measuredClutchFrame } from "./measured-clutch.ts";
 import { compileMeasuredStud } from "./measured-stud.ts";
 import { SET_6651557_MESH_ASSETS } from "./mesh-assets-6651557.ts";
 import type { MeasuredPartBlueprint } from "./measured-part-types.ts";
@@ -287,39 +285,10 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
     );
   }
 
-  blueprint.clutchesLdu.forEach(([x, y, z], index) => {
-    if (!Number.isSafeInteger(y) || y < bodyBoundsLdu.min[1] || y > bodyBoundsLdu.max[1]) {
-      fail(
-        blueprint,
-        `underside clutch ${index} seats at y=${y}, outside the measured body's ${bodyBoundsLdu.min[1]} to ${bodyBoundsLdu.max[1]} range or off the whole-LDU lattice; a seat is a plane of the part.`,
-      );
-    }
-    const portId = `undersideClutch:${index}`;
-    connectors.push({
-      id: portId,
-      kind: "undersideClutch",
-      geometryRole: "tubeSeat",
-      profileId: "stud-tube/1",
-      gender: "female",
-      positionLdu: [x, y, z],
-      normal: [0, 1, 0],
-      orientationId: "connector-down",
-      capacity: 1,
-      ...(blueprint.clutchSharedCapacityGroupIds?.[index]?.length
-        ? { sharedCapacityGroupIds: blueprint.clutchSharedCapacityGroupIds[index] }
-        : {}),
-      compatibleKinds: ["stud"],
-    });
-    allowances.push({
-      id: `tubeSeat:${index}`,
-      portId,
-      portKind: "undersideClutch",
-      incomingPrimitiveTag: "stud",
-      centerLdu: [x, y - STUD_HEIGHT_LDU / 2, z],
-      radiusLdu: STUD_RADIUS_LDU,
-      maxInsertionDepthLdu: STUD_HEIGHT_LDU,
-      requiresValidatedConnection: true,
-    });
+  blueprint.clutchesLdu.forEach((row, index) => {
+    const clutch = compileMeasuredClutch(blueprint, bodyBoundsLdu, row, index);
+    connectors.push(clutch.connector);
+    allowances.push(clutch.allowance);
   });
 
   (blueprint.sourceConnectorsLdu ?? []).forEach((source, index) => {
@@ -390,7 +359,7 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
       `names bundled mesh asset ${JSON.stringify(meshAssetId)}, which the production resolver refuses with ${resolution.code}: ${resolution.message}`,
     );
   }
-  const clutchSeatsLdu = blueprint.clutchesLdu.map(([x, y, z]) => [x, y, z] as LduVector3);
+  const clutchSeats = blueprint.clutchesLdu.map(measuredClutchFrame);
   const undersideMode =
     blueprint.clutchesLdu.length === 0
       ? "none"
@@ -399,7 +368,8 @@ export const makeMeasuredPartDefinition = (blueprint: MeasuredPartBlueprint): Pa
             indices: resolution.asset.indices,
             groups: resolution.asset.groups,
             bodyBoundsLdu,
-            clutchSeatsLdu,
+            clutchSeatsLdu: clutchSeats.map(({ positionLdu }) => positionLdu),
+            clutchNormals: clutchSeats.map(({ normal }) => normal),
           })
         ? "modelled-shell-cavity"
         : "semantic-tube-seat-offsets";

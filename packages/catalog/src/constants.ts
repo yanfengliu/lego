@@ -173,8 +173,18 @@ import { GENERATED_NON_UPRIGHT_PROPER_ORIENTATIONS } from "./proper-orientations
  * overlapped the stud by 0.00015 LDU and reported a stud-body collision. That
  * changes collision for validated edges only; the ordinary collision radius,
  * geometry, connector frames and capacity do not move.
+ *
+ * /32 adds no part identity and changes one part in place. Bracket `41682`
+ * gains the two clutch seats its pinned LDCad root authors in the vertical
+ * wall's back recess, a square-S6 socket facing +Z: `undersideClutch:4` and
+ * `:5` at [-10, -4, 4] and [10, -4, 4], normal [0, 0, 1]
+ * (`connector-z-positive`), each with a tube-seat allowance centred 2 LDU
+ * inside the seat. The four underside clutches keep their ids and frames.
+ * Its collision is measured as solid intervals per column instead of one
+ * height-field interval, so the recess is empty and the two 1-LDU boxes that
+ * stood past the wall's back face are gone (62 boxes, from 54).
  */
-export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/31" as const;
+export const BUILTIN_CATALOG_VERSION = "builtin.basic-parts/32" as const;
 export const CONNECTOR_TAXONOMY_VERSION = "stud-tube/2" as const;
 export const COLLISION_MODEL_VERSION = "rectilinear-stud-clearance/4" as const;
 export const TRANSFORM_POLICY_ID = "part-scoped-proper-orientations-negative-y-up" as const;

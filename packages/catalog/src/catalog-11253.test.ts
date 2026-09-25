@@ -310,12 +310,13 @@ describe("11253 roller-skate catalog truth", () => {
     ).toContain("MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH");
   });
 
-  it("pins the reviewed /31 projection of the /16 prefix under its historical truth labels", () => {
-    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
-    // removing those and restoring the /30 label reproduces the /30 pins.
+  it("pins the reviewed /32 projection of the /16 prefix under its historical truth labels", () => {
+    // /32 moves no part of this prefix, only the label. /31 moved these with
+    // seven parts' nominal-stud-tube/1 stud profiles; removing those and
+    // restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 88);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/16")
+      .replaceAll("builtin.basic-parts/32", "builtin.basic-parts/16")
       .replaceAll("rectilinear-stud-clearance/3", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

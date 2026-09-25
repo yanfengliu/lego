@@ -396,11 +396,15 @@ function penetrationCoveredByAllowance(
   if (!candidates) return false;
 
   return candidates.some(({ allowance }) => {
-    if (allowance.axis !== stud.axis || body.prismAxis !== stud.axis) return false;
+    if (allowance.axis !== stud.axis) return false;
     const axisIndex = allowance.axisIndex;
     const radialAxisIndices = otherAxisIndices(axisIndex);
-    const overlapMinimum = Math.max(stud.min[axisIndex], body.minAlongPrismAxis);
-    const overlapMaximum = Math.min(stud.max[axisIndex], body.maxAlongPrismAxis);
+    // The body's extent along the stud axis. A body prism runs along its part's
+    // local Y, which is the stud axis for an underside seat; a seat facing
+    // sideways (41682's flange recess) meets prisms running across it, and the
+    // world bounds are that prism's exact extent along the stud axis then.
+    const overlapMinimum = Math.max(stud.min[axisIndex], body.min[axisIndex]);
+    const overlapMaximum = Math.min(stud.max[axisIndex], body.max[axisIndex]);
     const connectionRadiusLdu = stud.validatedConnectionProfileRadiusLdu ?? stud.radiusLdu;
     const radialClearance = allowance.radiusLdu - connectionRadiusLdu;
     if (radialClearance < 0) return false;

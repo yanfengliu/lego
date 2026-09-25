@@ -8,7 +8,10 @@ import {
   resolvePartId,
   validateMeshPartDefinitionAdmission,
   type CollisionPrimitive,
+  type PartDefinition,
 } from "./index.js";
+import { resolvePreloadedMeshAsset } from "./mesh-assets.ts";
+import { meshClutchUndersides } from "./mesh-underside.ts";
 import {
   BUNDLED_LDRAW_CLOSURES,
   BUNDLED_LDRAW_CLOSURE_MANIFESTS,
@@ -112,7 +115,7 @@ describe("41682 vertical-stud bracket catalog truth", () => {
     expect(BUNDLED_LDRAW_SOURCE_FILES).toHaveLength(237);
   });
 
-  it("uses only the pinned LDCad walk for four clutches and two side studs", () => {
+  it("uses only the pinned LDCad walk for six clutches and two side studs", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "41682")!;
     if (!("ldcadShadowSource" in blueprint)) throw new Error("41682 has no pinned LDCad route");
@@ -154,10 +157,23 @@ describe("41682 vertical-stud bracket catalog truth", () => {
           orientationId: "connector-down",
         })),
       ),
+      // /32: the square-S6 socket in the wall's back recess, appended so the
+      // four underside seats keep undersideClutch:0..3.
+      ...[-10, 10].map((x) => ({
+        kind: "undersideClutch" as const,
+        positionLdu: [x, -4, 4],
+        normal: [0, 0, 1],
+        orientationId: "connector-z-positive",
+      })),
+    ]);
+    expect(part.connectors.map(({ id }) => id)).toEqual([
+      "stud:0",
+      "stud:1",
+      ...[0, 1, 2, 3, 4, 5].map((index) => `undersideClutch:${index}`),
     ]);
   });
 
-  it("binds 336 triangles and all 56 positive-volume collision primitives", () => {
+  it("binds 336 triangles and all 64 positive-volume collision primitives", () => {
     const part = getPartDefinition(PART_ID)!;
     const asset = SET_6651557_MESH_ASSETS["ldraw:official:41682.dat"]!;
     if (asset.indices === undefined) throw new Error("41682 mesh is unexpectedly unindexed");
@@ -176,7 +192,7 @@ describe("41682 vertical-stud bracket catalog truth", () => {
     ]);
     expect(asset.indices.length / 3).toBe(336);
     expect(asset.positionsLdu.length / 3).toBe(399);
-    expect(boxes).toHaveLength(54);
+    expect(boxes).toHaveLength(62);
     expect(cylinders).toEqual(
       [-10, 10].map((x, index) => ({
         id: `stud:${index}`,
@@ -190,16 +206,117 @@ describe("41682 vertical-stud bracket catalog truth", () => {
       })),
     );
     expect(part.collision.validatedConnectionStudProfile).toBe("nominal-stud-tube/1");
-    expect(part.collision.allowances).toHaveLength(4);
+    expect(part.collision.allowances.map(({ portId, centerLdu }) => [portId, centerLdu])).toEqual([
+      ["undersideClutch:0", [-10, 12, -10]],
+      ["undersideClutch:1", [-10, 12, 10]],
+      ["undersideClutch:2", [10, 12, -10]],
+      ["undersideClutch:3", [10, 12, 10]],
+      // Centred half the 4-LDU stud depth inside each recess seat, along -Z.
+      ["undersideClutch:4", [-10, -4, 2]],
+      ["undersideClutch:5", [10, -4, 2]],
+    ]);
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /31 projection of the /18 prefix under its historical truth label", () => {
-    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
-    // removing those and restoring the /30 label reproduces the /30 pins.
+  it("leaves the recess empty and stands nothing past the wall's back face", () => {
+    const part = getPartDefinition(PART_ID)!;
+    const boxes = part.collision.primitives.filter(
+      (primitive): primitive is Extract<CollisionPrimitive, { kind: "box" }> =>
+        primitive.kind === "box",
+    );
+    // The nominal stud a recess seat takes: radius 6 about [x, -4], z from 0 to 4.
+    for (const x of [-10, 10]) {
+      const intruding = boxes.filter(({ minLdu, maxLdu }) => {
+        const dx = Math.max(minLdu[0] - x, 0, x - maxLdu[0]);
+        const dy = Math.max(minLdu[1] + 4, 0, -4 - maxLdu[1]);
+        return minLdu[2] < 4 && maxLdu[2] > 0 && dx * dx + dy * dy < 36;
+      });
+      expect(intruding, `seat at x=${x}`).toEqual([]);
+    }
+    // Behind the wall (z > 4) only the 2 x 2 plate stands, below y = 6. /31's
+    // height field put two 1-LDU columns there up to the wall top (y = -14).
+    expect(boxes.filter(({ minLdu, maxLdu }) => maxLdu[2] > 4 && minLdu[1] < 6)).toEqual([]);
+  });
+
+  it("refuses the /31 stick-out and a seat whose orientation does not name its normal", () => {
+    const part = getPartDefinition(PART_ID)!;
+    const stickOut: PartDefinition = {
+      ...part,
+      collision: {
+        ...part.collision,
+        primitives: [
+          ...part.collision.primitives,
+          {
+            id: "body:stick-out",
+            kind: "box",
+            tag: "body",
+            minLdu: [-12, -14, 4],
+            maxLdu: [-11, 10, 5],
+          },
+        ],
+      },
+    };
+    const stickOutResult = validateMeshPartDefinitionAdmission(stickOut);
+    expect(stickOutResult.issues.map(({ code, path }) => [code, path])).toEqual([
+      ["MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH", "/connectors/6/positionLdu"],
+    ]);
+    expect(stickOutResult.issues[0]!.message).toMatch(
+      /seats at Z=4, but 1 body collision primitive\(s\) stand out to Z=5 along its outward normal \[0, 0, 1\]/u,
+    );
+
+    const misnamed: PartDefinition = {
+      ...part,
+      connectors: part.connectors.map((connector) =>
+        connector.id === "undersideClutch:4"
+          ? { ...connector, orientationId: "connector-down" as const }
+          : connector,
+      ),
+    };
+    expect(
+      validateMeshPartDefinitionAdmission(misnamed).issues.map(({ code, path }) => [code, path]),
+    ).toEqual([["MESH_ADMISSION_CONNECTOR_INVALID", "/connectors/6"]]);
+  });
+
+  it("reads each recess seat as recessed along its own axis", () => {
+    const part = getPartDefinition(PART_ID)!;
+    if (part.geometry.generatorId !== "builtin:preloaded-mesh-reference/1") {
+      throw new Error("41682 is unexpectedly not a preloaded mesh");
+    }
+    const resolution = resolvePreloadedMeshAsset(part.geometry);
+    if (!resolution.ok) throw new Error(`41682 mesh resolution failed: ${resolution.message}`);
+    const clutches = part.connectors.filter(({ kind }) => kind === "undersideClutch");
+    const seats = {
+      positionsLdu: resolution.asset.positionsLdu,
+      indices: resolution.asset.indices,
+      groups: resolution.asset.groups,
+      bodyBoundsLdu: part.bodyBoundsLdu,
+      clutchSeatsLdu: clutches.map(({ positionLdu }) => positionLdu),
+    };
+    const input = { ...seats, clutchNormals: clutches.map(({ normal }) => normal) };
+
+    // The recess floor faces +Z 4 LDU behind each recess seat.
+    expect(meshClutchUndersides(input)).toEqual(Array(6).fill("recessed"));
+    expect(part.geometry.undersideMode).toBe("modelled-shell-cavity");
+    // Read as underside seats instead (no normals), the recess seats' plan point
+    // lands under the plate's cavity ceiling, a verdict about the wrong face.
+    expect(meshClutchUndersides(seats).slice(4)).toEqual(["recessed", "recessed"]);
+    // A seat moved onto the flange's solid back face at x = 18 reads flat.
+    expect(
+      meshClutchUndersides({
+        ...input,
+        clutchSeatsLdu: [[18, -4, 4]],
+        clutchNormals: [[0, 0, 1]],
+      }),
+    ).toEqual(["flat"]);
+  });
+
+  it("pins the reviewed /32 projection of the /18 prefix under its historical truth label", () => {
+    // /32 moves no part of this prefix, only the label. /31 moved these with
+    // seven parts' nominal-stud-tube/1 stud profiles; removing those and
+    // restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 90);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/31",
+      "builtin.basic-parts/32",
       "builtin.basic-parts/18",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({

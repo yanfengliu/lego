@@ -11,7 +11,10 @@ import { describe, expect, it } from "vitest";
 
 import { canonicalDigest } from "./canonical.ts";
 import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
-import { partDefinitionsAt } from "./historical-catalog-archive.test-support.ts";
+import {
+  HISTORICAL_CATALOG_TEST_TIMEOUT_MS,
+  partDefinitionsAt,
+} from "./historical-catalog-archive.test-support.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { CAPACITY_CELLS_ADDED_FOR_ABSENT_PEERS } from "./historical-connection-carry-forward.ts";
 import { REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH } from "./historical-connection-semantics.ts";
@@ -29,6 +32,11 @@ import {
   plusV31,
 } from "./migration-v31-fixtures.test-support.ts";
 import {
+  V32_BRACKET_PART_ID,
+  expectedV32InterpretationChanges,
+  plusV32,
+} from "./migration-v32-fixtures.test-support.ts";
+import {
   REVIEWED_CATALOG_INTERPRETATION_CHANGES,
   REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS,
   migrateDocumentTruth,
@@ -42,7 +50,8 @@ import { validateBrickDocument } from "./validation.ts";
  *
  * Bound: the "names exactly" case diffs source commit 982634d against the live
  * catalog, so a later truth change to any part shows up here too and must be
- * reviewed into its own row, as /31's seven stud profiles are.
+ * reviewed into its own row, as /31's seven stud profiles and /32's 41682
+ * recess seats are.
  */
 const V29_TRUTH_HASH = "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb";
 const V29_SOURCE_COMMIT = "982634de7ddcb75310a802b9cc4dbba9d19d3d9c";
@@ -127,8 +136,9 @@ describe("builtin.basic-parts/29 migration", () => {
       sourcePairCount: 4,
       sourcePairMapDigest:
         "sha256:92dd1cdfb9f34879f55a5ee5a0827b5c24c830da654c90bd3b00896025ca5731",
-      // /31 adds its 26 stud-profile deltas, which this source has too.
-      endpointDeltas: plusV31(EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES, 23),
+      // /31 adds its 26 stud-profile deltas and /32 its two 41682 recess seats,
+      // which this source has too.
+      endpointDeltas: plusV32(plusV31(EXPECTED_JUMPER_1X2_CENTRE_SEAT_CHANGES, 23), 29),
       pairDeltas: [],
       carriedEndpointDeltas: carriedPlusV31(23),
     });
@@ -138,10 +148,10 @@ describe("builtin.basic-parts/29 migration", () => {
     for (const { catalogVersion, truthHash } of REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS) {
       const roster = getReviewedHistoricalCatalogRoster(truthHash);
       const row = REVIEWED_HISTORICAL_CONNECTION_SEMANTICS_BY_TRUTH_HASH[truthHash];
-      // A /30 source already has the centre seat, so nothing about 15573 moves for it.
+      // A /30 or later source already has the centre seat, so nothing about 15573 moves for it.
       const hasJumperChange =
         roster?.catalogPartIds.includes(JUMPER) === true &&
-        catalogVersion !== "builtin.basic-parts/30";
+        !["builtin.basic-parts/30", "builtin.basic-parts/31"].includes(catalogVersion);
       expect(
         row?.endpointDeltas.filter(({ partId }) => partId === JUMPER),
         truthHash,
@@ -175,6 +185,7 @@ describe("builtin.basic-parts/29 migration", () => {
     expect(report.catalogInterpretationChanges).toEqual([
       ...EXPECTED_V30_INTERPRETATION_CHANGES,
       ...expectedV31InterpretationChanges(29),
+      ...expectedV32InterpretationChanges(29),
     ]);
     // Only the catalog label moves: /30 and /31 keep the /29 connector taxonomy,
     // collision model, transform policy and validator set versions.
@@ -216,51 +227,58 @@ describe("builtin.basic-parts/29 migration", () => {
         ],
       },
       ...expectedV31InterpretationChanges(29),
+      ...expectedV32InterpretationChanges(29),
     ]);
     const validation = validateBrickDocument(document);
     expect(validation.issues.filter(({ severity }) => severity === "blocking")).toEqual([]);
     expect(validation.documentGloballyValid).toBe(true);
   });
 
-  it("names exactly the parts whose interpretation moved since /29 source commit 982634d", async () => {
-    const historical = await partDefinitionsAt(V29_SOURCE_COMMIT);
-    const historicalById = new Map(historical.map((part) => [part["id"], part]));
-    // Project-authored provenance carries the catalog label, so compare under
-    // the /29 label; JSON round trips drop undefined keys on both sides.
-    const plain = (value: unknown): unknown =>
-      value === undefined
-        ? undefined
-        : JSON.parse(
-            JSON.stringify(value).replaceAll(BUILTIN_CATALOG_VERSION, "builtin.basic-parts/29"),
+  it(
+    "names exactly the parts whose interpretation moved since /29 source commit 982634d",
+    async () => {
+      const historical = await partDefinitionsAt(V29_SOURCE_COMMIT);
+      const historicalById = new Map(historical.map((part) => [part["id"], part]));
+      // Project-authored provenance carries the catalog label, so compare under
+      // the /29 label; JSON round trips drop undefined keys on both sides.
+      const plain = (value: unknown): unknown =>
+        value === undefined
+          ? undefined
+          : JSON.parse(
+              JSON.stringify(value).replaceAll(BUILTIN_CATALOG_VERSION, "builtin.basic-parts/29"),
+            );
+      const moved = (field: string) =>
+        PART_DEFINITIONS.filter((part) => {
+          const before = historicalById.get(part.id);
+          return !isDeepStrictEqual(
+            plain((part as unknown as Record<string, unknown>)[field]),
+            plain(before?.[field]),
           );
-    const moved = (field: string) =>
-      PART_DEFINITIONS.filter((part) => {
-        const before = historicalById.get(part.id);
-        return !isDeepStrictEqual(
-          plain((part as unknown as Record<string, unknown>)[field]),
-          plain(before?.[field]),
-        );
-      }).map(({ id }) => id);
-    const fields = new Set([
-      ...historical.flatMap((part) => Object.keys(part)),
-      ...PART_DEFINITIONS.flatMap((part) => Object.keys(part)),
-    ]);
+        }).map(({ id }) => id);
+      const fields = new Set([
+        ...historical.flatMap((part) => Object.keys(part)),
+        ...PART_DEFINITIONS.flatMap((part) => Object.keys(part)),
+      ]);
 
-    expect(
-      REVIEWED_CATALOG_INTERPRETATION_CHANGES.filter(
-        ({ fromCatalogVersion }) => fromCatalogVersion === "builtin.basic-parts/29",
-      ),
-    ).toEqual(EXPECTED_V30_INTERPRETATION_CHANGES);
-    expect(historical.map((part) => part["id"])).toEqual(PART_DEFINITIONS.map(({ id }) => id));
-    expect(moved("ldrawFrame")).toEqual(EXPECTED_V30_LDRAW_FRAME_PART_IDS);
-    expect(moved("connectors")).toEqual([JUMPER]);
-    // /31 gives seven measured parts the nominal-stud-tube/1 stud profile.
-    expect(moved("collision")).toEqual([JUMPER, ...EXPECTED_V31_STUD_PROFILE_PART_IDS]);
-    // 15573's recipe records its new seat, so its geometry content hash moves.
-    expect(moved("geometry")).toEqual([JUMPER]);
-    for (const field of fields) {
-      if (["ldrawFrame", "connectors", "collision", "geometry"].includes(field)) continue;
-      expect(moved(field), field).toEqual([]);
-    }
-  });
+      expect(
+        REVIEWED_CATALOG_INTERPRETATION_CHANGES.filter(
+          ({ fromCatalogVersion }) => fromCatalogVersion === "builtin.basic-parts/29",
+        ),
+      ).toEqual(EXPECTED_V30_INTERPRETATION_CHANGES);
+      expect(historical.map((part) => part["id"])).toEqual(PART_DEFINITIONS.map(({ id }) => id));
+      expect(moved("ldrawFrame")).toEqual(EXPECTED_V30_LDRAW_FRAME_PART_IDS);
+      // /32 gives 41682 its two recess seats.
+      expect(moved("connectors")).toEqual([JUMPER, V32_BRACKET_PART_ID]);
+      // /31 gives seven measured parts the nominal-stud-tube/1 stud profile; /32
+      // gives 41682, one of the seven, its recess allowances and solid-interval boxes.
+      expect(moved("collision")).toEqual([JUMPER, ...EXPECTED_V31_STUD_PROFILE_PART_IDS]);
+      // 15573's recipe records its new seat, so its geometry content hash moves.
+      expect(moved("geometry")).toEqual([JUMPER]);
+      for (const field of fields) {
+        if (["ldrawFrame", "connectors", "collision", "geometry"].includes(field)) continue;
+        expect(moved(field), field).toEqual([]);
+      }
+    },
+    HISTORICAL_CATALOG_TEST_TIMEOUT_MS,
+  );
 });

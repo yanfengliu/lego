@@ -316,3 +316,24 @@ export const VALIDATED_STUD_PROFILE_AND_THROUGH_BORE_CHANGES = deepFreeze([
   TECHNIC_BRICK_1X2_AXLE_HOLE_THROUGH_BORE_CHANGE,
   ...VALIDATED_STUD_PROFILE_CHANGES_WING,
 ] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);
+
+/**
+ * /32 gives bracket 41682 the two clutch seats its LDCad root authors in the
+ * wall's back recess, facing +Z. They are additions: no source truth had them,
+ * so every source truth that has the part (/19 on) gains these two endpoints,
+ * and no saved edge can name them. The part's existing endpoints read the same.
+ */
+export const V32_BRACKET_RECESS_CLUTCH_ADDITIONS = deepFreeze([
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "undersideClutch:4",
+    sourceDigest: null,
+    targetDigest: "sha256:6e738abb3474d8e16ba540e2879d9c71107bc5f8205fe846c6f593ca48acf062",
+  },
+  {
+    partId: "builtin:bracket-2x2-1x2-vertical-studs",
+    portId: "undersideClutch:5",
+    sourceDigest: null,
+    targetDigest: "sha256:e61114115f67b819f73afbc35767055d78d00fb715620fe7593f533bbed40fe5",
+  },
+] as const satisfies readonly ConnectionSemanticsEndpointDelta[]);

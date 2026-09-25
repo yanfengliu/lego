@@ -15,6 +15,7 @@ import { migrateDocumentTruth } from "./migration.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
 import { expectedV31InterpretationChanges } from "./migration-v31-fixtures.test-support.ts";
+import { expectedV32InterpretationChanges } from "./migration-v32-fixtures.test-support.ts";
 import { validateBrickDocument } from "./validation.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
@@ -313,6 +314,7 @@ const CHANGES_AFTER_V28 = [
 const changesAfterV28 = (sourceVersion: number) => [
   ...CHANGES_AFTER_V28,
   ...expectedV31InterpretationChanges(sourceVersion),
+  ...expectedV32InterpretationChanges(sourceVersion),
 ];
 
 describe("migrateDocumentTruth", () => {
@@ -593,7 +595,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
+      "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(5));
     expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(18));
@@ -628,7 +630,7 @@ describe("migrateDocumentTruth", () => {
     expect(report.migrated).toBe(true);
     expect(report.blockingReasons).toEqual([]);
     expect(report.toTruthHash).toBe(
-      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
+      "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6",
     );
     expect(report.addedCatalogPartIds).toEqual(POST_V13_ADDITIVE_PART_IDS.slice(6));
     expect(report.catalogInterpretationChanges).toEqual(changesAfterV28(19));

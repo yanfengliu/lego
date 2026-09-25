@@ -40,6 +40,7 @@ const VERSION_30_INTERPRETATION_CHANGES = REVIEWED_CATALOG_INTERPRETATION_CHANGE
   ({ fromCatalogVersion }) => fromCatalogVersion === "builtin.basic-parts/29",
 );
 // Of the seven parts /31 gives a stud profile, the /13 roster holds only 2450 and 79491.
+// /32 changes only 41682, which enters the /13 roster as an added part, so it adds no row.
 const VERSION_31_INTERPRETATION_CHANGE = {
   fromCatalogVersion: "builtin.basic-parts/30",
   toCatalogVersion: "builtin.basic-parts/31",
@@ -58,9 +59,9 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
     expect(migrateDocumentTruth(source).report).toMatchObject({
       migrated: true,
       fromCatalogVersion: "builtin.basic-parts/13",
-      toCatalogVersion: "builtin.basic-parts/31",
+      toCatalogVersion: "builtin.basic-parts/32",
       fromTruthHash: "sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5",
-      toTruthHash: "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
+      toTruthHash: "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6",
       addedCatalogPartIds: [
         "builtin:tile-1x1-quarter-round",
         "builtin:bracket-1x2-1x4-rounded-bottom",
@@ -112,7 +113,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
         },
         applyBuildOperations: (document, operations) => {
           events.push(`apply:${document.truth.catalog.version}`);
-          if (document.truth.catalog.version !== "builtin.basic-parts/31") {
+          if (document.truth.catalog.version !== "builtin.basic-parts/32") {
             throw new TypeError("test sentinel saw current operations receive historical truth");
           }
           return applyBuildOperations(
@@ -125,7 +126,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
 
     expect(events).toEqual([
       "migrate:builtin.basic-parts/13",
-      "apply:builtin.basic-parts/31",
+      "apply:builtin.basic-parts/32",
       "migrate:builtin.basic-parts/13",
     ]);
     expect(reconstructed.truth).toEqual(source.truth);
@@ -210,7 +211,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
       "Connection changed-profile-edge endpoint changed-profile-part/stud:0 changed after reviewed source truth sha256:de62fae6dbc8095dfd460983e5e845ddfac4bf9ec2ea1f99572bc46026941cb5; migration cannot preserve its connector semantics, so remove connection changed-profile-edge from the saved document and re-attach the parts after migration",
     ]);
     expect(() => projectExactCurrentMigrationToFrozenV26(connected, refused)).toThrow(
-      /exact reviewed \/13 to \/31 runtime migration bridge/u,
+      /exact reviewed \/13 to \/32 runtime migration bridge/u,
     );
   });
 
@@ -225,7 +226,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
         migrateDocumentTruth: () => driftedReport,
         applyBuildOperations: (document) => document,
       }),
-    ).toThrow(/exact reviewed \/13 to \/31 runtime migration bridge/u);
+    ).toThrow(/exact reviewed \/13 to \/32 runtime migration bridge/u);
 
     const exactRows = exact.report.catalogInterpretationChanges;
     const exactRow = exactRows[0]!;
@@ -249,7 +250,7 @@ describe("reviewed frozen-/26 additive legacy operation projection", () => {
           migrateDocumentTruth: () => driftedInterpretation,
           applyBuildOperations: (document) => document,
         }),
-      ).toThrow(/exact reviewed \/13 to \/31 runtime migration bridge/u);
+      ).toThrow(/exact reviewed \/13 to \/32 runtime migration bridge/u);
     }
 
     for (const missingId of [

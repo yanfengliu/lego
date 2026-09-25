@@ -6,6 +6,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { extractTarArchive } from "../../../scripts/tar-archive.mjs";
 
 /**
+ * Timeout for a test that calls `partDefinitionsAt`. Archiving and loading a
+ * whole historical catalog takes about 4 s alone, and more than vitest's 5 s
+ * default when three such tests share the full suite's eight workers.
+ */
+export const HISTORICAL_CATALOG_TEST_TIMEOUT_MS = 30_000;
+
+/**
  * The catalog `PART_DEFINITIONS` exactly as source commit `commit` emits them,
  * read from a `git archive` of its catalog package extracted under the ignored
  * `output/` root and removed afterwards. Migration tests diff it against the

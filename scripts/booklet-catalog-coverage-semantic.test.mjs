@@ -103,11 +103,11 @@ describe("semantic booklet catalog coverage hostile boundary", () => {
 
     expect(report).toMatchObject({
       catalog: {
-        version: "builtin.basic-parts/31",
-        digest: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
+        version: "builtin.basic-parts/32",
+        digest: "sha256:2d95bc0b371954519d2f04bc56a950036c63de162469688d62cba9bee4fe2832",
       },
       inputDigests: {
-        catalog: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
+        catalog: "sha256:2d95bc0b371954519d2f04bc56a950036c63de162469688d62cba9bee4fe2832",
         prefix50SemanticClosure: semanticDigest,
       },
       calloutsConsidered: 1,

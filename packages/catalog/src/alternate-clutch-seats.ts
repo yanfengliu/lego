@@ -69,8 +69,12 @@ export function alternateClutchSeatIssues(
   const firstZ = gridCenter[1] - ((dimensions.lengthStuds - 1) * STUD_PITCH_LDU) / 2;
   const originOffsetX = placementResidue(firstX);
   const originOffsetZ = placementResidue(firstZ);
+  // The plan grid holds seats facing along Y. A seat facing X or Z sits on a
+  // side face, whose lattice the plan grid fixes along only its one plan
+  // tangent: 41682's flange-recess seats face +Z at x = -10 and 10.
+  const facesAlongY = (connector: Connector): boolean => connector.normal[1] !== 0;
   const undersideClutches = part.connectors.filter(
-    (connector) => connector.kind === "undersideClutch",
+    (connector) => connector.kind === "undersideClutch" && facesAlongY(connector),
   );
   const isOnPrimaryGrid = (connector: Connector): boolean =>
     onStudLattice(connector.positionLdu[0] + originOffsetX) &&
@@ -79,6 +83,19 @@ export function alternateClutchSeatIssues(
   for (let index = 0; index < part.connectors.length; index += 1) {
     const connector = part.connectors[index]!;
     if (connector.kind !== "undersideClutch") continue;
+    if (!facesAlongY(connector)) {
+      const planTangent = connector.normal[2] !== 0 ? 0 : 2;
+      const onLattice = onStudLattice(
+        connector.positionLdu[planTangent] + (planTangent === 0 ? originOffsetX : originOffsetZ),
+      );
+      if (!onLattice || declaredSharedCapacityGroups(connector).length > 0) {
+        add(
+          `/connectors/${index}/positionLdu`,
+          `Part ${part.id} clutch connector ${connector.id} faces [${connector.normal.join(", ")}] at ${"xyz"[planTangent]}=${connector.positionLdu[planTangent]}; a seat facing sideways must sit on the stud lattice along its plan tangent (${onLattice ? "it does" : "it does not"}) and may not claim shared capacity cells (${declaredSharedCapacityGroups(connector).length} declared), since the alternate-seat rule reads only the plan grid.`,
+        );
+      }
+      continue;
+    }
     if (!isOnPrimaryGrid(connector)) {
       const [seatX, seatY, seatZ] = connector.positionLdu;
       const groups = declaredSharedCapacityGroups(connector);

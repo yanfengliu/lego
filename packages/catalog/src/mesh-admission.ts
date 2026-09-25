@@ -35,6 +35,12 @@ import type {
 
 export const MESH_VISUAL_BOUNDS_TOLERANCE_LDU = MESH_RENDER_QUANTIZATION_TOLERANCE_LDU;
 const MAX_STUDLESS_NOMINAL_TOP_CHAMFER_LDU = 0.5;
+/** The two plan axes of a seat, by the index of the axis its normal runs along. */
+const TANGENT_AXES = [
+  [1, 2],
+  [0, 2],
+  [0, 1],
+] as const;
 
 export type MeshPartAdmissionIssueCode =
   | "MESH_ADMISSION_NOT_MESH"
@@ -551,15 +557,12 @@ export function validateMeshPartDefinitionAdmission(
       0,
     );
     const axisFrame = connectorAxisFrame(connector.normal);
+    // A stud or clutch orientation names its outward axis: an underside seat is
+    // connector-down/[0,1,0], and 41682's flange-recess seats connector-z-positive/[0,0,1].
     const connectorDirectionValid =
-      connector.kind === "stud"
+      connector.kind === "stud" || connector.kind === "undersideClutch"
         ? axisFrame?.orientationId === connector.orientationId
-        : connector.kind === "undersideClutch"
-          ? connector.orientationId === "connector-down" &&
-            connector.normal[0] === 0 &&
-            connector.normal[1] === 1 &&
-            connector.normal[2] === 0
-          : true;
+        : true;
     const physicalFrameKey = connectorPhysicalFrameKey(connector);
     const priorFrameOwner = connectorFrameOwners.get(physicalFrameKey);
     const axialSpanIssue = connectorAxialSpanIssue(connector);
@@ -579,6 +582,7 @@ export function validateMeshPartDefinitionAdmission(
         (pointInside(definition.bodyBoundsLdu, connector.axialSpan.openEndLdu) &&
           pointInside(definition.bodyBoundsLdu, connector.axialSpan.closedEndLdu))) &&
       (connector.kind === "stud" ||
+        connector.kind === "undersideClutch" ||
         connector.orientationId === "connector-up" ||
         connector.orientationId === "connector-down") &&
       connectorDirectionValid &&
@@ -603,7 +607,7 @@ export function validateMeshPartDefinitionAdmission(
       add(
         "MESH_ADMISSION_CONNECTOR_INVALID",
         `/connectors/${index}`,
-        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id and physical frame (kind + position + normal), the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's orientation must name its outward normal axis, while undersideClutch ports remain connector-down/[0,1,0]. A blindAxleHole also needs an exact one-sided axialSpan whose normal points from the closed end to the open mouth; other kinds must not carry that metadata. Optional sharedCapacityGroupIds are allowed only as a non-empty unique string list on an underside clutch. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}, axialSpan=${JSON.stringify(connector.axialSpan)}, axialSpanIssue=${JSON.stringify(axialSpanIssue)}, sharedCapacityGroupIds=${JSON.stringify(connector.sharedCapacityGroupIds)}${priorFrameOwner === undefined ? "" : `; this physical frame is already declared by connector ${JSON.stringify(priorFrameOwner.id)} at /connectors/${priorFrameOwner.index}, and changing connector ids or shared-capacity labels cannot create a second attachment frame`}.`,
+        `Part ${definition.id} connector ${JSON.stringify(connector.id)} needs a unique non-empty id and physical frame (kind + position + normal), the catalog taxonomy fields for kind ${connector.kind}, a safe-integer in-bounds position, and one axis-unit safe-integer normal; a stud's or undersideClutch's orientation must name its outward normal axis (an underside seat is connector-down/[0,1,0]). A blindAxleHole also needs an exact one-sided axialSpan whose normal points from the closed end to the open mouth; other kinds must not carry that metadata. Optional sharedCapacityGroupIds are allowed only as a non-empty unique string list on an underside clutch. Received position=${JSON.stringify(connector.positionLdu)}, orientation=${JSON.stringify(connector.orientationId)}, normal=${JSON.stringify(connector.normal)}, axialSpan=${JSON.stringify(connector.axialSpan)}, axialSpanIssue=${JSON.stringify(axialSpanIssue)}, sharedCapacityGroupIds=${JSON.stringify(connector.sharedCapacityGroupIds)}${priorFrameOwner === undefined ? "" : `; this physical frame is already declared by connector ${JSON.stringify(priorFrameOwner.id)} at /connectors/${priorFrameOwner.index}, and changing connector ids or shared-capacity labels cannot create a second attachment frame`}.`,
       );
     }
     if (
@@ -620,16 +624,20 @@ export function validateMeshPartDefinitionAdmission(
               connector.normal,
             )))) ||
         (connector.kind === "undersideClutch" &&
-          (connector.positionLdu[1] < definition.bodyBoundsLdu.min[1] ||
-            connector.positionLdu[1] > definition.bodyBoundsLdu.max[1])))
+          axisFrame !== undefined &&
+          (connector.positionLdu[axisFrame.axisIndex] <
+            definition.bodyBoundsLdu.min[axisFrame.axisIndex] ||
+            connector.positionLdu[axisFrame.axisIndex] >
+              definition.bodyBoundsLdu.max[axisFrame.axisIndex])))
     ) {
       connectorRepresentationValid = false;
+      const seatAxis = axisFrame?.axisIndex ?? 1;
       add(
         "MESH_ADMISSION_VERTICAL_EXTENTS_INVALID",
         `/connectors/${index}/positionLdu`,
         connector.kind === "stud"
           ? `Part ${definition.id} stud connector ${connector.id} must seat either on the global represented body face or on a centre-line-exposed local body collision-box face selected by outward normal [${connector.normal.join(", ")}]; received position [${connector.positionLdu.join(", ")}].`
-          : `Part ${definition.id} underside connector ${connector.id} seats at Y=${connector.positionLdu[1]}, outside the represented body's [${definition.bodyBoundsLdu.min[1]}, ${definition.bodyBoundsLdu.max[1]}] range. A stepped underside may seat above the lowest plane — 93273 seats two clutches 8 LDU up — but never outside the part.`,
+          : `Part ${definition.id} clutch connector ${connector.id} seats at ${"XYZ"[seatAxis]}=${connector.positionLdu[seatAxis]} along its normal [${connector.normal.join(", ")}], outside the represented body's [${definition.bodyBoundsLdu.min[seatAxis]}, ${definition.bodyBoundsLdu.max[seatAxis]}] range on that axis. A stepped underside may seat above the lowest plane — 93273 seats two clutches 8 LDU up — but never outside the part.`,
       );
     }
   }
@@ -688,11 +696,12 @@ export function validateMeshPartDefinitionAdmission(
     );
   }
 
-  // A declared underside seat has to be a plane the represented solid actually
-  // presents downward, with none of that solid hanging below it inside the stud
-  // footprint that an incoming stud would have to pass through. This is the
-  // collision union's half of the physical clutch-room measurement; it does not
-  // certify clutch strength, and the surface probe stays the source of that.
+  // A declared clutch seat has to be a plane the represented solid actually
+  // presents along the seat's outward normal (downward for an underside seat),
+  // with none of that solid standing out past it inside the stud footprint that
+  // an incoming stud would have to pass through. This is the collision union's
+  // half of the physical clutch-room measurement; it does not certify clutch
+  // strength, and the surface probe stays the source of that.
   for (
     let index = 0;
     bodyPrimitiveBounds.length > 0 && index < definition.connectors.length;
@@ -700,30 +709,45 @@ export function validateMeshPartDefinitionAdmission(
   ) {
     const connector = definition.connectors[index]!;
     if (connector.kind !== "undersideClutch" || !safeVector(connector.positionLdu)) continue;
-    const [seatX, seatY, seatZ] = connector.positionLdu;
-    const seatPlanes = bodyPrimitiveBounds.map(({ max }) => max[1]);
-    if (!seatPlanes.some((plane) => Math.abs(plane - seatY) <= MESH_VISUAL_BOUNDS_TOLERANCE_LDU)) {
+    const frame = connectorAxisFrame(connector.normal);
+    if (frame === undefined) continue;
+    const axis = frame.axisIndex;
+    const [firstTangent, secondTangent] = TANGENT_AXES[axis];
+    const axisName = "XYZ"[axis];
+    const seat = connector.positionLdu[axis];
+    const outwardFace = (bounds: LduBounds): number =>
+      frame.sign > 0 ? bounds.max[axis] : bounds.min[axis];
+    const seatPlanes = bodyPrimitiveBounds.map(outwardFace);
+    if (!seatPlanes.some((plane) => Math.abs(plane - seat) <= MESH_VISUAL_BOUNDS_TOLERANCE_LDU)) {
       add(
         "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
-        `/connectors/${index}/positionLdu/1`,
-        `Part ${definition.id} underside connector ${connector.id} declares a seat plane Y=${seatY} that no body collision primitive presents downward; the represented solid's downward faces are at [${[...new Set(seatPlanes)].sort((left, right) => left - right).join(", ")}]. A seat has to be a plane of the part, not a coordinate near one.`,
+        `/connectors/${index}/positionLdu/${axis}`,
+        `Part ${definition.id} clutch connector ${connector.id} declares a seat plane ${axisName}=${seat} that no body collision primitive presents along its outward normal [${connector.normal.join(", ")}]; the represented solid's faces that way are at [${[...new Set(seatPlanes)].sort((left, right) => left - right).join(", ")}]. A seat has to be a plane of the part, not a coordinate near one.`,
       );
       continue;
     }
+    const tangentCentre = [
+      connector.positionLdu[firstTangent],
+      connector.positionLdu[secondTangent],
+    ];
     const blocking = bodyPrimitiveBounds.filter(
       (bounds) =>
-        bounds.max[1] > seatY + MESH_VISUAL_BOUNDS_TOLERANCE_LDU &&
-        bounds.min[0] < seatX + STUD_RADIUS_LDU &&
-        bounds.max[0] > seatX - STUD_RADIUS_LDU &&
-        bounds.min[2] < seatZ + STUD_RADIUS_LDU &&
-        bounds.max[2] > seatZ - STUD_RADIUS_LDU,
+        (frame.sign > 0
+          ? outwardFace(bounds) > seat + MESH_VISUAL_BOUNDS_TOLERANCE_LDU
+          : outwardFace(bounds) < seat - MESH_VISUAL_BOUNDS_TOLERANCE_LDU) &&
+        bounds.min[firstTangent] < tangentCentre[0]! + STUD_RADIUS_LDU &&
+        bounds.max[firstTangent] > tangentCentre[0]! - STUD_RADIUS_LDU &&
+        bounds.min[secondTangent] < tangentCentre[1]! + STUD_RADIUS_LDU &&
+        bounds.max[secondTangent] > tangentCentre[1]! - STUD_RADIUS_LDU,
     );
     if (blocking.length > 0) {
-      const deepest = Math.max(...blocking.map(({ max }) => max[1]));
+      const farthest = blocking
+        .map(outwardFace)
+        .reduce((left, right) => (frame.sign * right > frame.sign * left ? right : left));
       add(
         "MESH_ADMISSION_CONNECTOR_COLLISION_MISMATCH",
         `/connectors/${index}/positionLdu`,
-        `Part ${definition.id} underside connector ${connector.id} seats at Y=${seatY}, but ${blocking.length} body collision primitive(s) reach down to Y=${deepest} inside its ${STUD_RADIUS_LDU} LDU stud footprint at [${seatX}, ${seatZ}]; an incoming stud cannot pass through the part's own solid to reach that seat.`,
+        `Part ${definition.id} clutch connector ${connector.id} seats at ${axisName}=${seat}, but ${blocking.length} body collision primitive(s) stand out to ${axisName}=${farthest} along its outward normal [${connector.normal.join(", ")}] inside its ${STUD_RADIUS_LDU} LDU stud footprint centred at [${tangentCentre.join(", ")}]; an incoming stud cannot pass through the part's own solid to reach that seat.`,
       );
     }
   }

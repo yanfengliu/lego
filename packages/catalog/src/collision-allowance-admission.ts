@@ -35,13 +35,17 @@ export function collisionAllowanceAdmissionIssues(
   for (let index = 0; index < definition.collision.allowances.length; index += 1) {
     const allowance = definition.collision.allowances[index]!;
     const port = definition.connectors.find(({ id }) => id === allowance.portId);
+    // The tube seat is the nominal stud volume, centred half its depth inside
+    // the seat along -normal: [x, y - depth/2, z] for an underside seat.
     const allowanceCenterMatchesPort =
       port !== undefined &&
       safeVector(allowance.centerLdu) &&
       Number.isSafeInteger(allowance.maxInsertionDepthLdu) &&
-      allowance.centerLdu[0] === port.positionLdu[0] &&
-      allowance.centerLdu[1] === port.positionLdu[1] - allowance.maxInsertionDepthLdu / 2 &&
-      allowance.centerLdu[2] === port.positionLdu[2];
+      allowance.centerLdu.every(
+        (coordinate, axis) =>
+          coordinate ===
+          port.positionLdu[axis]! - port.normal[axis]! * (allowance.maxInsertionDepthLdu / 2),
+      );
     if (
       allowance.id.trim().length === 0 ||
       allowanceIds.has(allowance.id) ||
@@ -60,7 +64,7 @@ export function collisionAllowanceAdmissionIssues(
       issues.push({
         code: "MESH_ADMISSION_COLLISION_INVALID",
         path: `/collision/allowances/${index}`,
-        message: `Part ${definition.id} collision allowance ${JSON.stringify(allowance.id)} must name an undersideClutch connector and use a safe-integer center exactly [port.x, port.y-maxInsertionDepthLdu/2, port.z], positive radius, and positive insertion depth; received port=${port === undefined ? "missing" : JSON.stringify(port.positionLdu)}, allowance=${JSON.stringify(allowance)}.`,
+        message: `Part ${definition.id} collision allowance ${JSON.stringify(allowance.id)} must name an undersideClutch connector and use a safe-integer center exactly port.position - port.normal * maxInsertionDepthLdu/2 ([port.x, port.y-maxInsertionDepthLdu/2, port.z] for an underside seat), positive radius, and positive insertion depth; received port=${port === undefined ? "missing" : `${JSON.stringify(port.positionLdu)} facing ${JSON.stringify(port.normal)}`}, allowance=${JSON.stringify(allowance)}.`,
       });
     }
     allowanceIds.add(allowance.id);

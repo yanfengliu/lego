@@ -94,7 +94,7 @@ describe("3040 straight-slope catalog truth", () => {
     const part = getPartDefinition(PART_ID)!;
     const blueprint = SET_6651557_MEASURED_BLUEPRINTS.find(({ designId }) => designId === "3040")!;
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/32");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(PART_DEFINITIONS.at(-14)?.id).toBe(PART_ID);
     expect(part).toMatchObject({
@@ -333,12 +333,13 @@ describe("3040 straight-slope catalog truth", () => {
     expect(validateMeshPartDefinitionAdmission(part)).toEqual({ accepted: true, issues: [] });
   });
 
-  it("pins the reviewed /31 projection of the /20 prefix under its historical truth label", () => {
-    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
-    // removing those and restoring the /30 label reproduces the /30 pins.
+  it("pins the reviewed /32 projection of the /20 prefix under its historical truth label", () => {
+    // /32 moved these with 41682's recess clutches and solid-interval boxes;
+    // restoring its /31 definition reproduces the /31 pins. /31 moved them
+    // with seven parts' nominal-stud-tube/1 stud profiles.
     const priorParts = PART_DEFINITIONS.slice(0, 92);
     const priorDefinitionBytes = JSON.stringify(priorParts).replaceAll(
-      "builtin.basic-parts/31",
+      "builtin.basic-parts/32",
       "builtin.basic-parts/20",
     );
     const connectorCollision = priorParts.map(({ id, connectors, collision }) => ({
@@ -357,10 +358,10 @@ describe("3040 straight-slope catalog truth", () => {
         .digest("hex"),
       collisionHash: createHash("sha256").update(JSON.stringify(collision)).digest("hex"),
     }).toEqual({
-      definitionBytes: 1_600_884,
-      definitionHash: "ff789ddcf69b903b28f5c6692fc5a40f7379151853907517cbc5f9984913259e",
-      connectorCollisionHash: "924a971f16b91e3dd674a94ff9b8a47bc3ecb9b45008c27aa90ae2f32839f802",
-      collisionHash: "acc1c3111f00571afa019315557f6e2e2ed7c7dc04fc44e9845f7431489d9293",
+      definitionBytes: 1_602_397,
+      definitionHash: "e910897ad8f5c8ebfd95dd38437a99298d8d93ead8551143baf7f441c1851f1e",
+      connectorCollisionHash: "2785e849794bde1efc59e479458453e9d049868cd0589461bd6f517fea60d1cd",
+      collisionHash: "37346f57cdadbf74320ca6d1c8e8303bf253fc15487a92d69425c5406e412f90",
     });
   });
 });

@@ -95,7 +95,7 @@ describe("preloaded mesh asset resolution", () => {
     const legacyRows = legacyParts.map(({ id, geometry }) => [id, geometry.contentHash]);
     const legacyHashes = JSON.stringify(legacyRows);
 
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/32");
     expect(PART_DEFINITIONS).toHaveLength(106);
     expect(
       PART_DEFINITIONS.filter(isMeshPartDefinition)
@@ -129,7 +129,7 @@ describe("preloaded mesh asset resolution", () => {
       createHash("sha256")
         .update(
           JSON.stringify(legacyParts)
-            .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/15")
+            .replaceAll("builtin.basic-parts/32", "builtin.basic-parts/15")
             .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2"),
         )
         .digest("hex"),
