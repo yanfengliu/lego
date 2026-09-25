@@ -141,7 +141,11 @@ export function stalenessOf(directory: string, current: PlayerStamp): string | n
   if (!recorded) return `${STAMP_FILE} is missing or unreadable`;
   if (recorded.set !== current.set) return "the set's manifest entry changed";
   for (const name of Object.keys(INPUT_WORDS) as (keyof PlayerInputPaths)[]) {
-    if (recorded.inputs[name] !== current.inputs[name]) return `${INPUT_WORDS[name]} changed`;
+    const now = current.inputs[name];
+    if (recorded.inputs[name] === now) continue;
+    return now.startsWith("absent:")
+      ? `${INPUT_WORDS[name]} is missing at ${now.slice("absent:".length)}`
+      : `${INPUT_WORDS[name]} changed`;
   }
   if (recorded.code !== current.code) return "the generating code changed";
   return null;

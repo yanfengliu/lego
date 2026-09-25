@@ -57,7 +57,7 @@ describe("player data freshness", () => {
     generate();
     rmSync(inputs.meshFallback);
     expect(stalenessOf(out(), currentPlayerStamp(SET, inputs, root))).toBe(
-      "the Builder mesh pack changed",
+      `the Builder mesh pack is missing at ${inputs.meshFallback}`,
     );
     generate();
     expect(stalenessOf(out(), currentPlayerStamp({ ...SET, name: "Renamed" }, inputs, root))).toBe(
