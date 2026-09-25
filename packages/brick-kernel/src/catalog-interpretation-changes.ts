@@ -391,4 +391,17 @@ export const REVIEWED_CATALOG_INTERPRETATION_CHANGES: readonly CatalogInterpreta
       ],
       changedFields: ["connector-semantics", "collision-semantics"],
     },
+    // /32 gives bracket 41682 the two clutch seats its LDCad root authors in the
+    // wall's back recess, facing +Z (undersideClutch:4 and :5, each with a
+    // tube-seat allowance), and measures its collision as solid intervals per
+    // column, so the recess is empty and nothing stands past the wall's back
+    // face. Its studs and four underside clutches keep their frames, capacity and
+    // allowances; a saved edge names only those, so migration carries it
+    // unchanged and no carry class applies.
+    {
+      fromCatalogVersion: "builtin.basic-parts/31",
+      toCatalogVersion: "builtin.basic-parts/32",
+      affectedCatalogPartIds: ["builtin:bracket-2x2-1x2-vertical-studs"],
+      changedFields: ["connector-semantics", "collision-semantics"],
+    },
   ]);

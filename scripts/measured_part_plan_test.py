@@ -17,6 +17,10 @@ from measured_source_connector_rows import MeasuredSourceConnector
 
 
 class PlanTests(unittest.TestCase):
+    def test_plan_refuses_an_unknown_collision_derivation(self) -> None:
+        with self.assertRaisesRegex(ValueError, "collision derivation 'column-guess'"):
+            plan(collision_derivation="column-guess")
+
     def test_plan_refuses_an_unknown_validated_connection_stud_profile(self) -> None:
         with self.assertRaisesRegex(ValueError, "only admitted source-rounding normalization"):
             plan(validated_connection_stud_profile="invented-profile/1")
@@ -216,6 +220,16 @@ class PlanTests(unittest.TestCase):
             ),
         )
         self.assertIsNone(ADMITTED_PART_PLANS[17].validated_connection_stud_profile)
+        # /32: 41682 alone opts into its recess's square-S6 cells and solid-interval collision.
+        self.assertEqual(
+            [
+                (row.design_id, row.collision_derivation)
+                for row in ADMITTED_PART_PLANS
+                if row.collision_derivation != "column-height-field"
+            ],
+            [("41682", "column-solid-intervals")],
+        )
+        self.assertTrue(ADMITTED_PART_PLANS[17].allow_ldcad_square_s6_clutches)
         self.assertEqual(
             (
                 ADMITTED_PART_PLANS[18].connector_source,

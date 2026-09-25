@@ -156,18 +156,18 @@ const CURRENT_RUNTIME_TRUTH: BrickDocumentV1["truth"] = SAFE_OBJECT_FREEZE({
   schemaVersion: "lego.truth-snapshot/1",
   catalog: {
     id: "builtin.basic-parts",
-    version: "builtin.basic-parts/31",
-    hash: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
+    version: "builtin.basic-parts/32",
+    hash: "sha256:2d95bc0b371954519d2f04bc56a950036c63de162469688d62cba9bee4fe2832",
   },
   connectorTaxonomy: {
     id: "stud-tube",
     version: "stud-tube/2",
-    hash: "sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2",
+    hash: "sha256:40354eb03e33724c019a25b0109c971816a3c6cab20d85d7edbba8df33e25de1",
   },
   collisionModel: {
     id: "rectilinear-stud-clearance",
     version: "rectilinear-stud-clearance/4",
-    hash: "sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a",
+    hash: "sha256:47790408ba997723a9f535cf0d3ca06a520ec6cc6eb97a18fe4b069638a3e472",
   },
   transformPolicy: {
     id: "part-scoped-proper-orientations-negative-y-up",
@@ -232,9 +232,9 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
   SAFE_OBJECT_FREEZE({
     schemaVersion: "lego.truth-migration/2",
     fromCatalogVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-    toCatalogVersion: "builtin.basic-parts/31",
+    toCatalogVersion: "builtin.basic-parts/32",
     fromTruthHash: STEP7_GATE3_SOURCE_TRUTH_HASH,
-    toTruthHash: "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
+    toTruthHash: "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6",
     addedColorIds: SAFE_OBJECT_FREEZE([]),
     addedCatalogPartIds: SAFE_OBJECT_FREEZE([
       ...ADDED_CATALOG_PART_IDS,
@@ -278,7 +278,7 @@ const EXPECTED_CURRENT_RUNTIME_MIGRATION_REPORT: Step7Gate3MigrationResult["repo
       SAFE_OBJECT_FREEZE({
         component: "catalog",
         fromVersion: STEP7_GATE3_SOURCE_CATALOG_VERSION,
-        toVersion: "builtin.basic-parts/31",
+        toVersion: "builtin.basic-parts/32",
       }),
       SAFE_OBJECT_FREEZE({
         component: "connector-taxonomy",
@@ -369,11 +369,12 @@ export function assertExactStep7Gate3FinalMigration(
 }
 
 /**
- * Projects the one exact live `/13` -> `/31` migration back onto the retained
+ * Projects the one exact live `/13` -> `/32` migration back onto the retained
  * additive `/26` boundary used by Gate-3 evidence. The live report authenticates
  * the roster-intersected `/29` connector/collision reinterpretation, the `/30`
  * LDraw-frame and 15573 reinterpretations and the roster-intersected `/31`
- * stud-profile reinterpretation; migration has already refused any edge using
+ * stud-profile reinterpretation (`/32` changes only 41682, which enters the
+ * `/13` roster as an added part, so it adds no row); migration has already refused any edge using
  * a changed endpoint it does not carry. The four `/27`, two `/28`, and two `/29`
  * rows plus later semantics never enter the projection.
  */
@@ -391,7 +392,7 @@ export function projectExactCurrentMigrationToFrozenV26(
       exactPlainDataBytes(CURRENT_RUNTIME_TRUTH, "Expected current runtime truth")
   ) {
     throw new SAFE_TYPE_ERROR(
-      "Frozen /26 projection requires the exact reviewed /13 to /31 runtime migration bridge.",
+      "Frozen /26 projection requires the exact reviewed /13 to /32 runtime migration bridge.",
     );
   }
   const expectedRuntimeRevision = `revision-${apply<string>(

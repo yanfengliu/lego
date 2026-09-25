@@ -108,13 +108,14 @@ const LEGACY_UPRIGHT_SOURCE_TRUTH_HASHES = deepFreeze([
 ] as const satisfies readonly Sha256Digest[]);
 
 /**
- * The source truths that carry the part-scoped /29 policy. /30 changed no
- * orientation and no part identity, so its transform-policy hash is /29's and
- * so is its policy.
+ * The source truths that carry the part-scoped /29 policy. /30 and /31
+ * changed no orientation and no part identity, so their transform-policy hash
+ * is /29's and so is their policy.
  */
 const PART_SCOPED_V29_SOURCE_TRUTH_HASHES = deepFreeze([
   "sha256:54762419e4779c6c15566052062fcaa432cb45e3a13704b5af1563b4fa94e8eb",
   "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+  "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
 ] as const satisfies readonly Sha256Digest[]);
 
 export const REVIEWED_HISTORICAL_TRANSFORM_POLICIES_BY_TRUTH_HASH: Readonly<

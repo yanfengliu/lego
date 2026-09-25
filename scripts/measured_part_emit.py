@@ -271,7 +271,7 @@ def render_blueprints(
         lines.append(f"    clutchesLdu: [{clutches}],")
         if plan.clutch_shared_capacity_groups:
             group_ids_by_position = dict(plan.clutch_shared_capacity_groups)
-            measured_positions = {tuple(row) for row in part.clutches_ldu}
+            measured_positions = {tuple(row[:3]) for row in part.clutches_ldu}
             declared_positions = set(group_ids_by_position)
             if measured_positions != declared_positions:
                 raise ValueError(
@@ -280,7 +280,7 @@ def render_blueprints(
                     f"{sorted(measured_positions)}."
                 )
             rows = ", ".join(
-                "[" + ", ".join(_string(group_id) for group_id in group_ids_by_position[tuple(row)]) + "]"
+                "[" + ", ".join(_string(group_id) for group_id in group_ids_by_position[tuple(row[:3])]) + "]"
                 for row in part.clutches_ldu
             )
             lines.append(f"    clutchSharedCapacityGroupIds: [{rows}],")

@@ -12,13 +12,26 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  * are literals rather than recomputed expectations on purpose: a test that
  * derives what it checks from the code it is checking cannot notice a change.
  *
- * Measured at catalog builtin.basic-parts/31 with 106 definitions. /31 adds no
- * part. Seven measured parts gain the nominal-stud-tube/1 validated-connection
- * profile on their stud cylinders, which moves the catalog and collision model
+ * Measured at catalog builtin.basic-parts/32 with 106 definitions. /32 adds no
+ * part. Bracket 41682 gains its two recess clutch seats facing +Z (connectors
+ * and tube-seat allowances) and solid-interval collision boxes, which moves the
+ * catalog, connector taxonomy and collision model hashes. Restoring the /31
+ * label and 41682's /31 definition (connectors, allowances and collision)
+ * reproduces all three /31 hashes below and the /31 truth bit for bit; the
+ * transform policy and validator set do not move.
+ *
+ * What they were at builtin.basic-parts/31, HEAD 1299598, with 106 definitions:
+ *   catalog            sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2
+ *   connectorTaxonomy  sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2
+ *   collisionModel     sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a
+ *   transformPolicy    sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c
+ *   validatorSet       sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe
+ *   truth              sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474
+ * /31 gave seven measured parts the nominal-stud-tube/1 validated-connection
+ * profile on their stud cylinders, which moved the catalog and collision model
  * hashes. Restoring the /30 label and removing those seven profiles, both the
- * part-level name and each stud cylinder's profile radius, reproduces both /30
- * hashes below bit for bit; the connector taxonomy, transform policy and
- * validator set do not move.
+ * part-level name and each stud cylinder's profile radius, reproduced both /30
+ * hashes below bit for bit; the connector taxonomy did not move.
  *
  * What they were at builtin.basic-parts/30, HEAD c6356f7, with 106 definitions:
  *   catalog            sha256:4662bd517d807a952bda5fc3964c02e34e0ae502255f747635b6c969fb564ebc
@@ -177,14 +190,14 @@ import { createBuiltinTruthSnapshot, getBuiltinTruthDigestInputs } from "./facto
  *   validatorSet       sha256:cb2767cfa8c8d7adfe145bef950b49428d8c8fced235a04b5f984c29799a031e
  */
 const PINNED_TRUTH_HASHES = {
-  catalog: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
-  connectorTaxonomy: "sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2",
-  collisionModel: "sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a",
+  catalog: "sha256:2d95bc0b371954519d2f04bc56a950036c63de162469688d62cba9bee4fe2832",
+  connectorTaxonomy: "sha256:40354eb03e33724c019a25b0109c971816a3c6cab20d85d7edbba8df33e25de1",
+  collisionModel: "sha256:47790408ba997723a9f535cf0d3ca06a520ec6cc6eb97a18fe4b069638a3e472",
   transformPolicy: "sha256:44cf428cee1487a9441c609a75fbafefd6c3b4591512af30f8903e4508285f4c",
   validatorSet: "sha256:44233e884c474210006e4e94b82e952fd7b446768396d5b53575eb7946cba4fe",
 } as const;
 
-const PINNED_TRUTH_HASH = "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474";
+const PINNED_TRUTH_HASH = "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6";
 
 /**
  * SHA-256 of the ordered `[partId, geometry.contentHash]` roster, all 106 rows.
@@ -232,8 +245,10 @@ const PINNED_PART_COUNT = 106;
  * "nominal-stud-tube/1",` (7 x 55) and their 26 stud cylinders'
  * `"validatedConnectionProfileRadiusLdu":6,` (26 x 40). No geometry content
  * hash moves.
+ * /32 is 1_818_432 + 1_513: 41682's two recess clutches and their allowances,
+ * and 62 collision boxes where there were 54. No geometry content hash moves.
  */
-const PINNED_CATALOG_SERIALIZED_LENGTH = 1_818_432;
+const PINNED_CATALOG_SERIALIZED_LENGTH = 1_819_945;
 
 describe("builtin truth digest stability", () => {
   it("keeps the five pinned truth hashes byte-identical", () => {
@@ -252,7 +267,7 @@ describe("builtin truth digest stability", () => {
     const truth = createBuiltinTruthSnapshot();
 
     expect(truth.catalog.hash).toBe(PINNED_TRUTH_HASHES.catalog);
-    expect(truth.catalog.version).toBe("builtin.basic-parts/31");
+    expect(truth.catalog.version).toBe("builtin.basic-parts/32");
     expect(truth.connectorTaxonomy.hash).toBe(PINNED_TRUTH_HASHES.connectorTaxonomy);
     expect(truth.collisionModel.hash).toBe(PINNED_TRUTH_HASHES.collisionModel);
     expect(truth.transformPolicy.hash).toBe(PINNED_TRUTH_HASHES.transformPolicy);

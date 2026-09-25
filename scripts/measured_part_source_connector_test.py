@@ -9,7 +9,8 @@ from unittest.mock import Mock, patch
 
 from ldcad_shadow_connectors import snap_instances
 from ldcad_shadow_metas import parse_shadow_metas
-from measured_part_tables import measured_part_report_row, scoreable_candidate
+from measured_part_scoring import scoreable_candidate
+from measured_part_tables import measured_part_report_row
 from measured_part_test_support import measured, plan
 from measured_source_connectors import source_connectors_for
 from measured_source_connector_rows import (

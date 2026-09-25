@@ -371,7 +371,7 @@ Catalog-carried attribution: Copyright (c) 2026 Yanfeng Liu. Underside clutch ce
 | `builtin:bracket-1x2-1x4-rounded-bottom` | `28802.dat` | 6 | 2 | 0 | 0 | 0 |
 | `builtin:tile-2x2-triangular` | `35787.dat` | 0 | 3 | 0 | 0 | 0 |
 | `builtin:roller-skate` | `11253.dat` | 1 | 1 | 0 | 0 | 0 |
-| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 4 | 0 | 0 | 0 |
+| `builtin:bracket-2x2-1x2-vertical-studs` | `41682.dat` | 2 | 6 | 0 | 0 | 0 |
 | `builtin:axle-1x3` | `4519.dat` | 0 | 0 | 3 | 0 | 0 |
 | `builtin:technic-brick-1x2-axle-hole` | `32064.dat` | 2 | 2 | 0 | 1 | 0 |
 | `builtin:plate-3x3` | `11212.dat` | 9 | 9 | 0 | 0 | 0 |

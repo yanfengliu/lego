@@ -22,7 +22,8 @@ from measured_part_geometry_test import (
 from measured_part_plan_catalog_contract_test import PlanCatalogContractTests
 from measured_part_plan_test import PlanTests
 from measured_part_source_connector_test import MeasuredSourceConnectorTests
-from measured_part_tables import scoreable_candidate
+from measured_clutch_tables import measured_clutch_rows
+from measured_part_scoring import scoreable_candidate
 from measured_part_test_support import measured, plan
 from measured_source_connector_rows import MeasuredSourceConnector
 
@@ -38,7 +39,61 @@ __all__ = [
     "RenderTests",
     "MeasuredSourceConnectorTests",
     "AxleHoleRoundTripTests",
+    "ClutchRowTests",
 ]
+
+
+class ClutchRowTests(unittest.TestCase):
+    def test_downward_seats_keep_their_order_and_other_normals_follow(self) -> None:
+        rows = measured_clutch_rows(
+            "unit",
+            [
+                ((10.0, -10.0, 4.0), (0.0, 0.0, 1.0)),
+                ((10.0, 8.0, 10.0), (0.0, 1.0, 0.0)),
+                ((-10.0, -10.0, 4.0), (0.0, 0.0, 1.0)),
+                ((-10.0, 8.0, 10.0), (0.0, 1.0, 0.0)),
+            ],
+            lambda point: (point[0], point[1] + 6.0, point[2]),
+            lambda direction: tuple(direction),  # type: ignore[arg-type,return-value]
+        )
+
+        self.assertEqual(
+            rows,
+            (
+                (-10.0, 14.0, 10.0),
+                (10.0, 14.0, 10.0),
+                (-10.0, -4.0, 4.0, 0.0, 0.0, 1.0),
+                (10.0, -4.0, 4.0, 0.0, 0.0, 1.0),
+            ),
+        )
+
+    def test_a_seat_that_does_not_face_along_one_axis_is_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "faces along one signed coordinate axis"):
+            measured_clutch_rows(
+                "unit",
+                [((0.0, 0.0, 0.0), (0.0, 0.6, 0.8))],
+                lambda point: tuple(point),  # type: ignore[arg-type,return-value]
+                lambda direction: tuple(direction),  # type: ignore[arg-type,return-value]
+            )
+
+    def test_scoreable_candidate_carries_each_clutch_normal_back_to_the_source_frame(self) -> None:
+        part = measured(
+            plan=plan(
+                orientation_id="upright-yaw-90",
+                translation_ldu=(0, -12, 0),
+                connector_source="ldcad-shadow",
+            ),
+            clutches_ldu=((0.0, 12.0, -10.0), (-10.0, -4.0, 4.0, 0.0, 0.0, 1.0)),
+            source_connectors_ldu=(),
+            candidate={"connectors": [], "derivation": "unit source candidate"},
+        )
+
+        candidate = scoreable_candidate(part)
+
+        self.assertEqual(
+            [(row["positionLdu"], row["normal"]) for row in candidate["connectors"]],  # type: ignore[index,union-attr]
+            [([10.0, 24.0, 0.0], [0.0, 1.0, 0.0]), ([-4.0, 8.0, -10.0], [-1.0, 0.0, 0.0])],
+        )
 
 
 class AxleHoleRoundTripTests(unittest.TestCase):
@@ -126,6 +181,10 @@ class MeasuredPartFileBoundaryTests(unittest.TestCase):
             "measured_source_connector_rows.py",
             "measured_source_connectors.py",
             "measured_part_test_support.py",
+            "measured_part_scoring.py",
+            "measured_clutch_tables.py",
+            "part_admission_solid_columns.py",
+            "part_admission_solid_columns_test.py",
         )
 
         line_counts = {

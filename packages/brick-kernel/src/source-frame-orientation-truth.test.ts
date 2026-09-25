@@ -14,23 +14,24 @@ describe("source-frame orientation infrastructure truth boundary", () => {
     expect(digestInputs.transformPolicy.orientations).toBe(PROPER_ORIENTATIONS);
     expect(truth).toEqual({
       schemaVersion: "lego.truth-snapshot/1",
-      // /31 moved the catalog and collision model and left the /30 connector
-      // taxonomy, transform policy and validator set byte-identical
+      // /32 moved the catalog, connector taxonomy and collision model with
+      // 41682's recess clutches and solid-interval boxes, and left the /31
+      // transform policy and validator set byte-identical
       // (truth-digest-stability.test.ts has the proof).
       catalog: {
         id: "builtin.basic-parts",
-        version: "builtin.basic-parts/31",
-        hash: "sha256:b0ec0baddbd165ef1c821097ad31388bd4515c233236f833a2364265578feaf2",
+        version: "builtin.basic-parts/32",
+        hash: "sha256:2d95bc0b371954519d2f04bc56a950036c63de162469688d62cba9bee4fe2832",
       },
       connectorTaxonomy: {
         id: "stud-tube",
         version: "stud-tube/2",
-        hash: "sha256:73e50f5ea9f2ce529f241dae4e04dc99aeb2b57738c228d0844e5b30af66ceb2",
+        hash: "sha256:40354eb03e33724c019a25b0109c971816a3c6cab20d85d7edbba8df33e25de1",
       },
       collisionModel: {
         id: "rectilinear-stud-clearance",
         version: "rectilinear-stud-clearance/4",
-        hash: "sha256:878ed40921b671888228a13a747fa7836eaba50adab2319a2050130360e6211a",
+        hash: "sha256:47790408ba997723a9f535cf0d3ca06a520ec6cc6eb97a18fe4b069638a3e472",
       },
       transformPolicy: {
         id: "part-scoped-proper-orientations-negative-y-up",
@@ -44,7 +45,7 @@ describe("source-frame orientation infrastructure truth boundary", () => {
       },
     });
     expect(canonicalDigest(truth)).toBe(
-      "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
+      "sha256:dbb4c8147a20b8ed0598ebf617583993fa7dd89788cdc491056d1579ee7b19d6",
     );
   });
 });

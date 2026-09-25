@@ -199,11 +199,13 @@ const EXPECTED_PART_IDS = [
   // part's LDraw frame and gives 15573 a centre seat, both in place.
   // builtin.basic-parts/31 adds no identity: seven measured parts gain the
   // nominal-stud-tube/1 validated-connection stud profile in place.
+  // builtin.basic-parts/32 adds no identity: 41682 gains its two recess clutch
+  // seats and solid-interval collision in place.
 ] as const;
 
 describe("starter catalog", () => {
-  it("publishes the seven nominal stud profiles as version 31", () => {
-    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/31");
+  it("publishes 41682's recess clutch seats as version 32", () => {
+    expect(BUILTIN_CATALOG_VERSION).toBe("builtin.basic-parts/32");
   });
 
   it("pins 25269's exact LDCad route and raw-to-catalog central clutch", () => {

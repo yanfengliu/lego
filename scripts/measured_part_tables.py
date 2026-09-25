@@ -24,7 +24,6 @@ from measured_part_geometry import (
     frame_box,
     frame_direction,
     frame_point,
-    inverse_orientation_id,
     merged_mesh,
     require_front_side_surface,
 )
@@ -32,15 +31,20 @@ from measured_part_report_rows import (
     build_measured_part_report_row,
     build_render_only_part_report_row,
 )
+from measured_clutch_tables import (
+    DOWNWARD_CLUTCH_NORMAL,
+    MeasuredClutchRow,
+    measured_clutch_rows,
+)
 from measured_stud_tables import MeasuredStudRow, require_matching_stud_frames
 from measured_source_connectors import source_connectors_for
 from measured_source_connector_rows import (
     MeasuredSourceConnector,
-    source_connector_candidate_row,
     source_connector_sort_key,
     transform_source_connector,
 )
 from part_admission_ldraw_candidate import DEFAULT_COLUMN_LDU, column_candidate, role_classifier
+from part_admission_solid_columns import SOLID_INTERVAL_DERIVATION_ID, solid_interval_candidate
 from part_admission_surface import STUD_ROLE, MeasuredSurface
 from proper_orientations_generated import PROPER_ORIENTATIONS
 
@@ -52,6 +56,12 @@ CONNECTOR_SOURCES = (
     BUILDER_CONNECTIVITY_CONNECTOR_SOURCE,
     LDCAD_SHADOW_CONNECTOR_SOURCE,
 )
+# How a plan's collision boxes are measured. The height field is every part's
+# default; solid intervals are an opt-in (part_admission_solid_columns.py).
+COLLISION_DERIVATIONS = {
+    "column-height-field": column_candidate,
+    SOLID_INTERVAL_DERIVATION_ID: solid_interval_candidate,
+}
 @dataclass(frozen=True)
 class BuilderConnectivityFact:
     """One byte-pinned Builder field whose full clutch set is already settled."""
@@ -100,8 +110,14 @@ class MeasuredPartPlan:
     clutch_shared_capacity_groups: tuple[
         tuple[tuple[int, int, int], tuple[str, ...]], ...
     ] = ()
+    collision_derivation: str = "column-height-field"
 
     def __post_init__(self) -> None:
+        if self.collision_derivation not in COLLISION_DERIVATIONS:
+            raise ValueError(
+                f"Part {self.design_id} names collision derivation {self.collision_derivation!r}; "
+                f"the measured derivations are {sorted(COLLISION_DERIVATIONS)}."
+            )
         if self.orientation_id not in PROPER_ORIENTATIONS:
             raise ValueError(
                 f"Part {self.design_id} names source-to-catalog orientation "
@@ -206,7 +222,7 @@ class MeasuredPart:
     exact_body_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     exact_bounds: tuple[tuple[str, str, str], tuple[str, str, str]]
     studs_ldu: tuple[MeasuredStudRow, ...]
-    clutches_ldu: tuple[Vector3, ...]
+    clutches_ldu: tuple[MeasuredClutchRow, ...]
     source_connectors_ldu: tuple[MeasuredSourceConnector, ...]
     body_boxes_ldu: tuple[float, ...]
     root: SourceRecord
@@ -355,27 +371,30 @@ def measure_part(
     ]
     all_points = [point for triangle in surface.triangles for point in triangle]
     solid_bounds = _bounds(solid_points)
-    candidate = _clamped_source_candidate(column_candidate(surface, column_ldu), solid_bounds)
+    derive = COLLISION_DERIVATIONS[plan.collision_derivation]
+    candidate = _clamped_source_candidate(derive(surface, column_ldu), solid_bounds)
 
+    # Builder fields author underside cells only, so their seats face down.
     if plan.connector_source == BUILDER_CONNECTOR_SOURCE:
-        source_clutches = builder_clutches.get(plan.design_id)
-        if source_clutches is None:
+        builder_seats = builder_clutches.get(plan.design_id)
+        if builder_seats is None:
             raise ValueError(
                 f"Part {plan.design_id} declares Builder connectors, but the pinned "
                 "Builder-to-LDraw frame report has no record for that design."
             )
+        source_clutches = [(position, DOWNWARD_CLUTCH_NORMAL) for position in builder_seats]
         shadow_files: tuple[str, ...] = ()
         source_connectors: list[MeasuredSourceConnector] = []
     elif plan.connector_source == BUILDER_CONNECTIVITY_CONNECTOR_SOURCE:
         fact = plan.builder_connectivity_fact
         assert fact is not None
-        source_clutches = [list(position) for position in fact.clutches_source_ldu]
+        source_clutches = [(position, DOWNWARD_CLUTCH_NORMAL) for position in fact.clutches_source_ldu]
         shadow_files = ()
         source_connectors = []
     else:
         composition = compose_part_snaps(library, shadow, root_key)
         source_clutches = [
-            [float(value) for value in row["positionLdu"]]  # type: ignore[union-attr]
+            (row["positionLdu"], row["normal"])  # type: ignore[misc]
             for row in emit_clutch_connectors(
                 composition.snaps, allow_square_s6=plan.allow_ldcad_square_s6_clutches
             )
@@ -403,7 +422,12 @@ def measure_part(
         exact_body_bounds=_exact_bounds(solid_points, plan, "body bounds"),
         exact_bounds=_exact_bounds(all_points, plan, "visual bounds"),
         studs_ldu=_stud_rows(candidate, plan),
-        clutches_ldu=tuple(sorted(frame_point(row, plan) for row in source_clutches)),
+        clutches_ldu=measured_clutch_rows(
+            plan.design_id,
+            source_clutches,  # type: ignore[arg-type]
+            lambda point: frame_point(point, plan),
+            lambda direction: frame_direction(direction, plan),
+        ),
         source_connectors_ldu=tuple(
             sorted(
                 (
@@ -423,69 +447,3 @@ def measure_part(
         shadow_files=shadow_files,
         candidate=candidate,
     )
-
-
-def scoreable_candidate(part: MeasuredPart) -> dict[str, object]:
-    """The measured part as the part-admission scorer's own candidate shape.
-
-    Scoring happens in the source-local frame the scorer measures in, against the
-    same surface, so the number recorded for an admitted part is a number about
-    the declaration actually emitted rather than about a differently framed one.
-    """
-
-    inverse = inverse_orientation_id(part.plan.orientation_id)
-    unframe = MeasuredPartPlan(
-        design_id=part.plan.design_id,
-        ldraw_path=part.plan.ldraw_path,
-        family=part.plan.family,
-        width_studs=part.plan.width_studs,
-        length_studs=part.plan.length_studs,
-        variant=part.plan.variant,
-        height_ldu=part.plan.height_ldu,
-        orientation_id=inverse,
-        translation_ldu=(0, 0, 0),
-        connector_grid_center_ldu=part.plan.connector_grid_center_ldu,
-        connector_source=part.plan.connector_source,
-        builder_connectivity_fact=part.plan.builder_connectivity_fact,
-        catalog_id=part.plan.catalog_id,
-        display_name=part.plan.display_name,
-    )
-    clutches = [
-        frame_point(
-            (
-                row[0] - part.plan.translation_ldu[0],
-                row[1] - part.plan.translation_ldu[1],
-                row[2] - part.plan.translation_ldu[2],
-            ),
-            unframe,
-        )
-        for row in part.clutches_ldu
-    ]
-    source_connectors = [
-        source_connector_candidate_row(
-            row,
-            lambda point: frame_point(
-                tuple(point[axis] - part.plan.translation_ldu[axis] for axis in range(3)),
-                unframe,
-            ),
-            lambda direction: frame_direction(direction, unframe),
-        )
-        for row in part.source_connectors_ldu
-    ]
-    candidate = dict(part.candidate)
-    candidate["connectors"] = [
-        row for row in candidate["connectors"] if row["kind"] == "stud"  # type: ignore[union-attr,index]
-    ] + [
-        {
-            "kind": "undersideClutch",
-            "gender": "female",
-            "positionLdu": list(position),
-            "normal": [0.0, 1.0, 0.0],
-        }
-        for position in clutches
-    ] + source_connectors
-    candidate["derivation"] = (
-        f"{part.plan.connector_source} connectors over "
-        f"{candidate['derivation']}"  # type: ignore[index]
-    )
-    return candidate

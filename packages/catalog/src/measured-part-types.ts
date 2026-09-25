@@ -62,6 +62,15 @@ export type MeasuredStudRow =
     ];
 
 /**
+ * One clutch seat. The three-number row is an underside seat, whose outward
+ * normal is +Y (`connector-down`); a seat facing any other axis carries its
+ * outward axis-unit normal, as 41682's flange-recess seats carry [0, 0, 1].
+ */
+export type MeasuredClutchRow =
+  | readonly [x: number, y: number, z: number]
+  | readonly [x: number, y: number, z: number, normalX: number, normalY: number, normalZ: number];
+
+/**
  * A non-stud connector derived from the declaration's pinned authored source.
  *
  * The measured route deliberately admits only exact axle, through axle-hole,
@@ -162,8 +171,12 @@ export interface MeasuredPartBlueprint {
    * expanded together.
    */
   readonly studsLdu: readonly MeasuredStudRow[];
-  /** Underside clutch seats from the declaration's one authored connector source. */
-  readonly clutchesLdu: readonly (readonly [x: number, y: number, z: number])[];
+  /**
+   * Clutch seats from the declaration's one authored connector source: every
+   * underside seat first, then any seat facing another axis, so a part that
+   * gains one keeps the ids of the seats it had.
+   */
+  readonly clutchesLdu: readonly MeasuredClutchRow[];
   /**
    * Part-local shared capacity cells aligned one-for-one with `clutchesLdu`.
    * Present only for a reviewed source socket with mutually overlapping seats;

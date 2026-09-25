@@ -12,6 +12,7 @@ import { createEmptyBrickDocument, createPartInstance } from "./factory.ts";
 import { getReviewedHistoricalCatalogRoster } from "./historical-catalog-rosters.ts";
 import { EXPECTED_V30_INTERPRETATION_CHANGES } from "./migration-historical-fixtures.test-support.ts";
 import { expectedV31InterpretationChanges } from "./migration-v31-fixtures.test-support.ts";
+import { expectedV32InterpretationChanges } from "./migration-v32-fixtures.test-support.ts";
 import { migrateDocumentTruth } from "./migration.ts";
 import { VALIDATOR_SET_VERSION } from "./truth-manifests.ts";
 
@@ -91,6 +92,7 @@ describe("builtin.basic-parts/28 migration", () => {
       },
       ...EXPECTED_V30_INTERPRETATION_CHANGES,
       ...expectedV31InterpretationChanges(28),
+      ...expectedV32InterpretationChanges(28),
     ]);
     expect(report.truthComponentChanges).toEqual([
       {

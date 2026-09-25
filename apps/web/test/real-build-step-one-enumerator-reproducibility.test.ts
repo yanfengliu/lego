@@ -29,7 +29,7 @@ function distinct(candidates: readonly PlacementCandidate[]): readonly Placement
   });
 }
 
-describe("current /31 step-one catalog enumeration", () => {
+describe("current /32 step-one catalog enumeration", () => {
   it("retains the complete 4 by 100 no-model offer product without target transforms", () => {
     const empty = createEmptyBrickDocument({
       id: "step-one-enumerator-reproducibility",
@@ -56,7 +56,7 @@ describe("current /31 step-one catalog enumeration", () => {
       return { first, branches };
     };
     const { first, branches } = enumerateBranches(empty);
-    // The offers execute only under current /31 truth; this frozen catalog label
+    // The offers execute only under current /32 truth; this frozen catalog label
     // preserves the reviewed /26 digest envelope as evidence, never placement authority.
     const frozenBasis = createFrozenLegacyAdditiveCatalogBasisV26();
     expect(frozenBasis.constraints.allowedCatalogPartIds).toHaveLength(98);
@@ -104,9 +104,10 @@ describe("current /31 step-one catalog enumeration", () => {
           ({ connections, restsOnBuildPlate }) => connections.length > 0 && !restsOnBuildPlate,
         ),
     ).toBe(true);
-    // Only the catalog label moved at /30 and again at /31: the frozen-label
-    // digest above hashes the same branches and still holds; /30 was
-    // sha256:463fbe59...d21e2ff5 and /29 was sha256:d74b5a83...f6edc26e.
-    expect(digest).toBe("sha256:fe42020fe99519cb40229e33ebd2c96dfe96869aeaed9533dd2da39ff9078360");
+    // Only the catalog label moved at /30, /31 and again at /32: the frozen-label
+    // digest above hashes the same branches and still holds; /31 was
+    // sha256:fe42020f...f9078360, /30 was sha256:463fbe59...d21e2ff5 and /29 was
+    // sha256:d74b5a83...f6edc26e.
+    expect(digest).toBe("sha256:1cf1e6d6cd9e6a7f6542431f891efcbe9444c26acf4abda7f265297fd011c5be");
   });
 });

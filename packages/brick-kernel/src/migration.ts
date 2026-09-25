@@ -58,6 +58,7 @@ export const MIGRATABLE_CATALOG_VERSIONS: readonly string[] = Object.freeze([
   "builtin.basic-parts/28",
   "builtin.basic-parts/29",
   "builtin.basic-parts/30",
+  "builtin.basic-parts/31",
   BUILTIN_CATALOG_VERSION,
 ]);
 
@@ -356,6 +357,18 @@ export const REVIEWED_HISTORICAL_TRUTH_SNAPSHOTS = Object.freeze([
     catalogVersion: "builtin.basic-parts/30",
     sourceCommit: "c6356f76520b130c326e2a6df3917045df551085",
     truthHash: "sha256:cf2d67907369f85551055665b6df0f849dd978d2e63330130ec2d2db8f6ccc0b",
+  },
+  // The snapshot /32 replaces. /32 adds no part identity. Bracket 41682 gains
+  // the two clutch seats its LDCad root authors in the wall's back recess,
+  // facing +Z (undersideClutch:4 and :5), and its collision is measured as
+  // solid intervals per column, so the recess is empty. Its studs and four
+  // underside clutches keep their frames, capacity and allowances, so a saved
+  // edge on any of them migrates unchanged; the two new seats did not exist to
+  // be saved, so no edge can name them and no carry class is needed.
+  {
+    catalogVersion: "builtin.basic-parts/31",
+    sourceCommit: "12995985b8a151b5e4bec84076e717e050be0fb3",
+    truthHash: "sha256:b2ca21fb0fefefa18c17229cdcf1235475031bc2892d5d514103d45473a7d474",
   },
 ] as const);
 

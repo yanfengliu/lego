@@ -227,12 +227,13 @@ describe("28802 rounded-bottom bracket catalog truth", () => {
     }
   });
 
-  it("pins the reviewed /31 projection of the /14 prefix under its historical truth labels", () => {
-    // /31 moved these with seven parts' nominal-stud-tube/1 stud profiles;
-    // removing those and restoring the /30 label reproduces the /30 pins.
+  it("pins the reviewed /32 projection of the /14 prefix under its historical truth labels", () => {
+    // /32 moves no part of this prefix, only the label. /31 moved these with
+    // seven parts' nominal-stud-tube/1 stud profiles; removing those and
+    // restoring the /30 label reproduces the /30 pins.
     const priorParts = PART_DEFINITIONS.slice(0, 86);
     const priorDefinitionBytes = JSON.stringify(priorParts)
-      .replaceAll("builtin.basic-parts/31", "builtin.basic-parts/14")
+      .replaceAll("builtin.basic-parts/32", "builtin.basic-parts/14")
       .replaceAll("rectilinear-stud-clearance/4", "rectilinear-stud-clearance/2");
     const rows = priorParts.map(({ id, connectors, collision }) => ({ id, connectors, collision }));
     const collisionRows = priorParts.map(({ id, collision }) => ({ id, collision }));

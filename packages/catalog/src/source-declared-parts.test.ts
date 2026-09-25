@@ -304,6 +304,7 @@ const ADMITTED = [
   },
   // builtin.basic-parts/19. The source and shadow closure agree on two
   // side-facing studs; the same shadow root authors four underside clutches.
+  // /32: and two recess clutches facing +Z, over 62 solid-interval boxes.
   {
     id: "builtin:bracket-2x2-1x2-vertical-studs",
     ldrawId: "41682.dat",
@@ -317,8 +318,8 @@ const ADMITTED = [
     bodyBoundsLdu: { min: [-20, -14, -20], max: [20, 14, 20] },
     boundsLdu: { min: [-20, -14, -20], max: [20, 14, 20] },
     studs: 2,
-    clutches: 4,
-    bodyBoxes: 54,
+    clutches: 6,
+    bodyBoxes: 62,
     triangles: 336,
     vertices: 399,
     closureFiles: 14,
