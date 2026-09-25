@@ -2,9 +2,9 @@
 
 ## What this is
 
-A digital brick modeling studio with two target surfaces: a precise manual brick editor, and a closed loop that reads a printed LEGO instruction booklet and builds its set — counting every part, compiling each printed step into a build program, placing each piece, checking each step against the booklet's own picture, and playing the build back. Stack: TypeScript, Three.js, React, Vitest, Playwright, Python.
+A build player for LEGO set 21066 (owner, 2026-09-24): `npm start` plays the build one printed step at a time, with play, pause, step and scrub controls and a 3D view to examine, beside the booklet page that prints each step. It plays LEGO's official model packed with LDraw parts until the closed loop behind it works: reading a printed LEGO instruction booklet and building its set — counting every part, compiling each printed step into a build program, placing each piece, checking each step against the booklet's own picture, and playing the build back. That loop stays general, since other sets are deferred, not dropped. Stack: TypeScript, Three.js, React, Vitest, Playwright, Python.
 
-Not a BrickLink Studio clone, general mesh editor, complete official-parts catalog, or promise of physical stability, clutch or instructions, and not merged with `3d-maker` just because both render 3D.
+Not a manual brick editor (the old one at `/editor.html` goes in milestone 2), BrickLink Studio clone, general mesh editor, complete official-parts catalog, or promise of physical stability, clutch or instructions, and not merged with `3d-maker` just because both render 3D.
 
 Session start: read `docs/START.md` and this repo's rules in `docs/policies/local-rules.md`; read a design doc only when the task changes its system. Claim a feature, command, validator or harness exists only once live files and a run prove it. No status in this file: history is `docs/devlog/summary.md`, the measured position `docs/design/building-system.md`.
 

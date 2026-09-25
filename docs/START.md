@@ -4,31 +4,26 @@ Read this file, [`docs/policies/local-rules.md`](policies/local-rules.md) and [`
 
 ## What the product is
 
-A digital brick modeling studio with two target surfaces over one document model:
+A build player for LEGO set 21066 ([local-rules](policies/local-rules.md#the-product)): `npm start` plays it step by step beside the booklet page, from LEGO's official model packed with LDraw parts. The pipeline meant to read and build a set from its booklet stays general, since other sets are deferred, not dropped; its placement is experimental and fail-closed ([building-system.md](design/building-system.md)). The manual editor UI (`/editor.html`) is out of scope and goes in milestone 2.
 
-- A precise manual brick editor that works offline in the browser.
-- A closed loop meant to read a printed LEGO instruction booklet and build its set: count every part, compile each printed step into a build program, place each piece, check each step against the booklet's own panel, and play the build back. Placement is experimental and fail-closed today ([building-system.md](design/building-system.md)).
-
-The versioned `BrickDocument` part-and-connection graph is the truth; scenes, renders, LDraw files and model answers derive from it. The booklet is the loop's input; the official LEGO Builder model is only the scoring answer key, never a builder input, except the experimental real-build tooling, retired with that family ([local-rules](policies/local-rules.md#the-booklet-and-the-reference)).
+The versioned `BrickDocument` part-and-connection graph is the pipeline's truth; scenes, renders, LDraw files and model answers derive from it. The booklet is its input; the official LEGO model is the scoring answer key and the player's reference build, never a builder input ([local-rules](policies/local-rules.md#the-booklet-and-the-reference)).
 
 ## Where the measured position lives
 
-- [`docs/design/building-system.md`](design/building-system.md) holds the current measured position of the editor and the booklet build, and the ordered work still missing. Read it before choosing booklet work or claiming progress.
+- [`docs/design/building-system.md`](design/building-system.md) holds the measured position of the booklet build and the ordered work still missing. Read it before choosing booklet work or claiming progress.
 - [`docs/devlog/summary.md`](devlog/summary.md) is history, newest first, not status.
-- `npm run booklet` scores the booklet build per printed step against the official model: reads the booklet, aligns each step, measures catalog coverage, and replays the official poses through the brick kernel. Rows go to ignored `output/booklet/`, checked against committed [`status/booklet-baseline.json`](../status/booklet-baseline.json). Inputs default to the checkout's `recipes/` and `output/official-model/`, overridden by `BOOKLET_PDF`, `BOOKLET_LXFML`, `BOOKLET_OFFICIAL_LDRAW` and `BOOKLET_OUT`. Frames come from the catalog; `BOOKLET_LDRAW_FRAMES` feeds only an opt-in registry check.
+- `npm run booklet` scores the booklet build per printed step against the official model: reads the booklet, aligns each step, measures catalog coverage, and replays the official poses through the brick kernel. Rows go to ignored `output/booklet/`, checked against committed [`status/booklet-baseline.json`](../status/booklet-baseline.json). It also writes the player's data to `output/booklet/player/<set>/`. Inputs come from the set's entry in `tools/player/sets.ts` (`--set <id>`), overridden by `BOOKLET_PDF`, `BOOKLET_LXFML`, `BOOKLET_OFFICIAL_LDRAW` and `BOOKLET_OUT`. Frames come from the catalog; `BOOKLET_LDRAW_FRAMES` feeds only an opt-in registry check.
 - `node scripts/identify-booklet.mjs` identifies every part callout by closed-set matching against the booklet's inventory, no model call, and scores Steps 1-50 against tracked truth labels. `LEGO_BOOKLET_PDF` overrides the booklet; results go to ignored `output/booklet/identify.json`.
 - Run numbers live in ignored `output/`; a claimed improvement names the number it moved.
 - A handoff's prose is not the position: retest an inherited blocker before repeating it (fleet canon).
 
 ## Where code lives
 
-- `apps/web/src`: the React/Three.js editor (`components/`, `viewport/`, `persistence/`, `manual-commands.ts`) and the booklet loop — `instructions/` reads the PDF (pages, steps, callouts, inventory), `instructions/identify/` matches each callout to an inventory part, `assembly/` searches and scores placements against panels.
+- `tools/player/`: set manifest `sets.ts`, dev-only `/player-data/` routes `serve.ts`, staleness stamp `freshness.ts`, `npm start`.
+- `apps/web/src`: the build player (`player/`, the default page, reading only a set's `model.mpd` and `steps.json`), the old editor at `/editor.html` and the booklet loop — `instructions/` reads the PDF (pages, steps, callouts, inventory), `instructions/identify/` matches each callout to an inventory part, `assembly/` searches and scores placements against panels.
 - `apps/web/e2e` and `apps/web/test`: Playwright specs and the experimental real-build family (`real-build-*`), and Vitest contract tests for that family.
 - `apps/companion`: artifact store, test run ledger and test recorder as a library; the planned home of the trust broker.
-- `packages/protocol`: versioned JSON Schema with generated types and validators.
-- `packages/brick-kernel`: documents, commands, compiler, patches, validation, migrations, and `compareBuilds`.
-- `packages/catalog`: parts, colours, geometry, connectors, collision, licences.
-- `packages/rendering`: Three.js derivation, canonical captures, render packets.
+- `packages/`: `protocol` (versioned JSON Schema, generated types and validators), `brick-kernel` (documents, commands, compiler, patches, validation, migrations, `compareBuilds`), `catalog` (parts, colours, geometry, connectors, collision, licences), `rendering` (Three.js derivation, canonical captures, render packets).
 - `scripts/`: booklet, LDraw, Builder and catalog derivation tools in Node and Python, plus the gate scripts.
 - `tools/booklet/`: the `npm run booklet` harness; its `answer-key/` module reads the official model. An `eslint.config.js` rule stops product code (`packages/*/src`, `apps/*/src`) from importing `tools/booklet` or naming `output/official-model`.
 - `recipes/`: the local booklet PDF, ignored and never committed.
@@ -68,7 +63,7 @@ Each is stated once, where the link points.
 
 - Product, domain, trust or authority contracts (`BrickDocument`, `BuildProgram`, compiled patches, validation, model consent, persistence, interchange, automation hooks): [`docs/design/spec.md`](design/spec.md).
 - Run evidence, replay, candidate lineage, backtracking, typed refusals, evaluation, promotion, physical feedback: [`docs/design/learning-system.md`](design/learning-system.md).
-- A part (identity, its four render-surface layers, lattice and bounds, connectors and collision, declaration, sources, admission, catalog version): [`docs/design/part-model.md`](design/part-model.md), then [`docs/runbooks/part-visual-admission.md`](runbooks/part-visual-admission.md).
+- A part or the catalog: [`docs/design/part-model.md`](design/part-model.md), then [`docs/runbooks/part-visual-admission.md`](runbooks/part-visual-admission.md).
 - Booklet work, next steps, or a progress claim: [`docs/design/building-system.md`](design/building-system.md), then [`docs/runbooks/real-build.md`](runbooks/real-build.md).
 - A trust boundary (broker, provider, consent, signing, persistence, model boundary): [`docs/design/threat-model.md`](design/threat-model.md).
 - A dependency, geometry source or licence: [`docs/dependency-data-bom.md`](dependency-data-bom.md), plus generated [`docs/bundled-geometry-notices.md`](bundled-geometry-notices.md) and [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).

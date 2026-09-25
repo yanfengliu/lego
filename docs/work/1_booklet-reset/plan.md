@@ -5,6 +5,16 @@ Owner: Claude Code session 472890e3 (coordinator)
 Created: 2026-09-22
 Updated: 2026-09-24
 
+## New goal (owner, 2026-09-24): the build player
+
+The owner's words: "This project now does one thing only: It plays the build step by step. I can pause, play, step through, examine the model in 3d, and compare against the pdf step. Nothing more than that. So far just focus on this one build." Later the same day: other sets are deferred, not dropped, once reading and executing a set from its booklet is reliable, so the reading pipeline stays general and set-specific facts live only in the set manifest.
+
+Milestones:
+
+1. **The build player for 21066** (done in this milestone's commits). `npm start` regenerates stale player data with `npm run booklet`, then serves the player: a 3D view (three's LDrawLoader, orbit, pan, zoom, reset view) beside the booklet page (pdf.js), first, previous, play/pause with a speed choice, next and last, a scrubber, the label `Step N / 359 · page P · +K parts`, keyboard control, and a glow on the parts each step adds. The data is LEGO's official model, each brick at its official LDraw pose with the labelled frame corrections (41682, 77844, 80015), grouped by the harness's identity alignment, one `0 STEP` per printed step, packed with the pinned official LDraw library. The six designs that library lacks (6801, 7236, 7302, 7562, 8172, 89680; 32 parts) are labelled stand-ins from the set's LEGO Builder mesh pack, posed from the LXFML: the Parts Tracker's unofficial files for 6801, 7236 and 7302 are drawn in another frame, and 7236 stood 240 LDU out of the model. The editor moved to `/editor.html`.
+2. **Delete the editor UI** (next): the manual editor's page and components only, not the reading pipeline, kernel or catalog.
+3. **Later improvements**, not yet planned: show a sub-build apart from the model at the steps that build it (v1 shows its parts in final position; 259 of 359 steps build one, by the LXFML's sub-build structure below the wrapper every brick shares); play another set once its booklet can be read and executed reliably.
+
 ## Problem and outcome
 
 Why: 4.0B Claude tokens and about 3.0B Codex tokens over 08-04..09-15 left 0 steps verified against the booklet. 87.8% of Claude tokens went to two sessions that never restarted. The blind first-50 protocol produced no product commit after 08-29. LEGO's official model of set 21066 (all 1,465 bricks and a camera per step, ignored under output/official-model/) was used only as a diagnostic through Step 50.

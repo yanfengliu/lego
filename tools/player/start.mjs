@@ -28,7 +28,6 @@ registerBookletHooks();
 const { PLAYER_SETS, playerOutputDir, setInputPaths } = await import("./sets.ts");
 const { currentPlayerStamp, stalenessOf } = await import("./freshness.ts");
 const { mainCheckoutRoot } = await import("../booklet/inputs.ts");
-const { unofficialArchivePath } = await import("../booklet/player-library.ts");
 const { officialArchivePath } = await import("../../scripts/derive-ldraw-catalog-frames.mjs");
 
 const inputRoot = mainCheckoutRoot(ROOT);
@@ -40,7 +39,6 @@ const staleness = (set) =>
       {
         ...setInputPaths(set, inputRoot, process.env),
         library: officialArchivePath(process.env),
-        unofficialLibrary: unofficialArchivePath(process.env),
       },
       ROOT,
     ),

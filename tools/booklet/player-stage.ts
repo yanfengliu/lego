@@ -223,7 +223,7 @@ export function buildPlayerData(input: PlayerDataInput): PlayerData {
       `0 Name: ${set.id}.ldr`,
       "0 Author: npm run booklet (tools/booklet/player-stage.ts)",
       `0 // Parts from ${MODEL_SOURCE}.`,
-      "0 // Geometry and colours from the LDraw.org parts library (official, then unofficial), each file keeping its own author and licence lines; parts/builder/ files are stand-ins from LEGO Builder meshes.",
+      "0 // Geometry and colours from the official LDraw.org parts library, each file keeping its own author and licence lines; parts/builder/ files are stand-ins from LEGO Builder meshes for designs it lacks.",
     ],
     steps: rowsByStep,
     submodels,
@@ -259,7 +259,6 @@ export interface PlayerStage {
   readonly corrections: readonly string[];
   readonly correctedParts: number;
   readonly libraryFiles: number;
-  readonly unofficialFiles: readonly string[];
   readonly standIns: Readonly<Record<string, number>>;
   readonly modelBytes: number;
 }
@@ -277,16 +276,10 @@ export function runPlayerStage(input: {
   readonly corrections: readonly FrameCorrection[];
 }): PlayerStage {
   let data: PlayerData;
-  let unofficialFiles: ReadonlySet<string>;
   try {
-    const opened = openPlayerLibrary({
-      official: input.inputs.library,
-      unofficial: input.inputs.unofficialLibrary,
-    });
-    unofficialFiles = opened.unofficialFiles;
     data = buildPlayerData({
       ...input,
-      ...opened,
+      ...openPlayerLibrary(input.inputs.library),
       standInFor: builderStandIns(input.inputs.meshFallback),
     });
   } catch (error) {
@@ -313,8 +306,7 @@ export function runPlayerStage(input: {
     countFallbackSteps: steps.filter(({ alignment }) => alignment !== "identity").length,
     corrections: [...new Set(input.corrections.map(({ designId }) => designId))].sort(byName),
     correctedParts: data.correctedParts,
-    libraryFiles: data.model.libraryFiles,
-    unofficialFiles: [...unofficialFiles].sort(byName),
+    libraryFiles: data.model.libraryFiles - data.standIns.size,
     standIns: Object.fromEntries(data.standIns),
     modelBytes: data.model.bytes,
   };
@@ -330,5 +322,5 @@ export function playerLine(stage: {
   }
   const v = stage.value;
   const standIns = Object.entries(v.standIns).map(([design, parts]) => `${design} x${parts}`);
-  return `[player] set ${v.set}: ${v.steps} printed steps, ${v.parts} parts (${v.unplacedParts} placed by no step, left out), ${v.emptySteps} steps add none, ${v.subBuildSteps} build sub-builds (shown in final position), ${v.countFallbackSteps} not aligned by identity · frame corrections ${v.corrections.join(", ") || "none"} on ${v.correctedParts} parts · ${v.libraryFiles} library files (${v.unofficialFiles.length} unofficial), Builder-mesh stand-ins ${standIns.join(", ") || "none"}, ${(v.modelBytes / 1024 / 1024).toFixed(1)} MB → ${v.directory}; play it with npm start`;
+  return `[player] set ${v.set}: ${v.steps} printed steps, ${v.parts} parts (${v.unplacedParts} placed by no step, left out), ${v.emptySteps} steps add none, ${v.subBuildSteps} build sub-builds (shown in final position), ${v.countFallbackSteps} not aligned by identity · frame corrections ${v.corrections.join(", ") || "none"} on ${v.correctedParts} parts · ${v.libraryFiles} LDraw library files, Builder-mesh stand-ins ${standIns.join(", ") || "none"}, ${(v.modelBytes / 1024 / 1024).toFixed(1)} MB → ${v.directory}; play it with npm start`;
 }

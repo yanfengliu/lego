@@ -4,8 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * The build player's controls, driven through the page on a synthetic
- * committed fixture (fixtures/player/): three printed steps of inline boxes,
- * the second adding nothing, and a generated two-page booklet. The player's
+ * committed fixture (FIXTURE_MPD below and fixtures/player/steps.json) and a
+ * generated two-page booklet. The player's
  * data requests are answered from the fixture, so this runs on a clean clone.
  *
  * Bound: it checks what the page says and what the scene reports it shows
@@ -15,6 +15,53 @@ import { expect, test, type Page } from "@playwright/test";
  */
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/player/${name}`, import.meta.url));
+
+/**
+ * Three printed steps of inline boxes, the second adding nothing. It is kept
+ * here as text because the BOM's source policy keeps raw LDraw files (.mpd,
+ * .ldr, .dat) out of apps/.
+ */
+const FIXTURE_MPD = [
+  "0 FILE fixture.ldr",
+  "0 Synthetic fixture: three printed steps, the second adding nothing",
+  "0 Name: fixture.ldr",
+  "0 Author: lego repository (synthetic e2e fixture)",
+  "0 !COLOUR Main_Colour CODE 16 VALUE #7F7F7F EDGE #333333",
+  "0 !COLOUR Edge_Colour CODE 24 VALUE #7F7F7F EDGE #333333",
+  "0 !COLOUR Blue CODE 1 VALUE #1E5AA8 EDGE #333333",
+  "0 !COLOUR Red CODE 4 VALUE #B40000 EDGE #333333",
+  "0 !COLOUR Trans_Clear CODE 47 VALUE #FCFCFC EDGE #C3C3C3 ALPHA 128",
+  "1 4 0 0 0 1 0 0 0 1 0 0 0 1 box.dat",
+  "1 1 60 0 0 1 0 0 0 1 0 0 0 1 box.dat",
+  "0 STEP",
+  "0 STEP",
+  "1 47 30 -24 0 1 0 0 0 1 0 0 0 1 box.dat",
+  "0 STEP",
+  "",
+  "0 FILE box.dat",
+  "0 Synthetic box 2 x 2 x 1",
+  "0 Name: box.dat",
+  "0 !LDRAW_ORG Part",
+  "0 BFC NOCERTIFY",
+  "4 16 -20 -24 -20 20 -24 -20 20 -24 20 -20 -24 20",
+  "4 16 -20 0 -20 -20 0 20 20 0 20 20 0 -20",
+  "4 16 -20 0 -20 20 0 -20 20 -24 -20 -20 -24 -20",
+  "4 16 -20 0 20 -20 -24 20 20 -24 20 20 0 20",
+  "4 16 -20 0 -20 -20 -24 -20 -20 -24 20 -20 0 20",
+  "4 16 20 0 -20 20 0 20 20 -24 20 20 -24 -20",
+  "2 24 -20 -24 -20 20 -24 -20",
+  "2 24 20 -24 -20 20 -24 20",
+  "2 24 20 -24 20 -20 -24 20",
+  "2 24 -20 -24 20 -20 -24 -20",
+  "2 24 -20 0 -20 20 0 -20",
+  "2 24 20 0 -20 20 0 20",
+  "2 24 20 0 20 -20 0 20",
+  "2 24 -20 0 20 -20 0 -20",
+  "2 24 -20 0 -20 -20 -24 -20",
+  "2 24 20 0 -20 20 -24 -20",
+  "2 24 20 0 20 20 -24 20",
+  "2 24 -20 0 20 -20 -24 20",
+].join("\n");
 
 /** A two-page PDF, each page one filled rectangle, with an exact cross-reference table. */
 function twoPagePdf(): Buffer {
@@ -51,7 +98,7 @@ async function serveFixture(page: Page, overrides: Record<string, Answer> = {}):
       }),
     },
     "/player-data/fixture/steps.json": { type: "application/json", body: fixture("steps.json") },
-    "/player-data/fixture/model.mpd": { type: "text/plain", body: fixture("model.mpd") },
+    "/player-data/fixture/model.mpd": { type: "text/plain", body: FIXTURE_MPD },
     "/player-data/fixture/booklet.pdf": { type: "application/pdf", body: twoPagePdf() },
     ...overrides,
   };

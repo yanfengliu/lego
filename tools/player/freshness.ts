@@ -11,9 +11,8 @@ import type { PlayerSet } from "./sets.ts";
  * the generating code are now.
  *
  * The booklet, the official model files and the Builder mesh pack are
- * hashed; the two LDraw library archives are identified by size and
- * modification time, since the generator refuses any archive but the pinned
- * one anyway. The code is every source file
+ * hashed; the LDraw library archive is identified by size and modification
+ * time, since the generator refuses any archive but the pinned one anyway. The code is every source file
  * under GENERATOR_SOURCES, tests excluded.
  *
  * Bound: a generator dependency outside GENERATOR_SOURCES changes nothing
@@ -40,7 +39,6 @@ export interface PlayerInputPaths {
   readonly lxfml: string;
   readonly ldraw: string;
   readonly library: string;
-  readonly unofficialLibrary: string;
   readonly meshFallback: string;
 }
 
@@ -56,7 +54,6 @@ const INPUT_WORDS: { readonly [Name in keyof PlayerInputPaths]: string } = {
   lxfml: "the official LXFML",
   ldraw: "the official LDraw export",
   library: "the LDraw library archive",
-  unofficialLibrary: "the unofficial LDraw library archive",
   meshFallback: "the Builder mesh pack",
 };
 
@@ -117,7 +114,6 @@ export function currentPlayerStamp(
       lxfml: fileIdentity(inputs.lxfml, true),
       ldraw: fileIdentity(inputs.ldraw, true),
       library: fileIdentity(inputs.library, false),
-      unofficialLibrary: fileIdentity(inputs.unofficialLibrary, false),
       meshFallback: fileIdentity(inputs.meshFallback, true),
     },
     code: generatorCodeDigest(repositoryRoot),

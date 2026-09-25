@@ -9,31 +9,24 @@ import { openExactLdrawArchive } from "../../scripts/part-identification-prefix5
 import type { LibraryReader } from "./player-model.ts";
 
 /**
- * Where the build player's geometry comes from, in order:
+ * Where the build player's geometry comes from:
  *
  * 1. the official LDraw.org parts library, the pinned ldraw-complete-2026-07.zip
  *    (LEGO_LDRAW_OFFICIAL_ARCHIVE), which also supplies the colours;
- * 2. the LDraw Parts Tracker's unofficial parts, the pinned
- *    ldraw-unofficial-2026-08-02.zip (LEGO_LDRAW_UNOFFICIAL_ARCHIVE), for
- *    parts not yet released (21066 needs 6801, 7236 and 7302 from it);
- * 3. a stand-in built from LEGO Builder's own mesh for a design no LDraw file
- *    exists for (21066: 7562, 8172, 89680), from the set's local Builder mesh
- *    pack (the manifest's `meshFallback`, LEGO_BUILDER_NATIVE_PACK). It is
- *    written as `builder/<design>.dat` and labelled a stand-in in its header.
+ * 2. for a design that library lacks, a stand-in built from LEGO Builder's own
+ *    mesh, from the set's local Builder mesh pack (the manifest's
+ *    `meshFallback`, LEGO_BUILDER_NATIVE_PACK), written as
+ *    `parts/builder/<design>.dat` and labelled a stand-in in its header. For
+ *    21066 that is 6801, 7236, 7302, 7562, 8172 and 89680.
  *
- * All three are read locally and never committed; the packed model is served
- * only by the local dev server.
+ * The LDraw Parts Tracker's unofficial files for 6801, 7236 and 7302 are not
+ * used: they are drawn in another frame than the one the official export
+ * posed those designs in, and 7236 stood 240 LDU out of the back of the model.
+ * A Builder mesh is in the LXFML part frame, so the LXFML pose places it.
+ *
+ * Both sources are read locally and never committed; the packed model is
+ * served only by the local dev server.
  */
-export const UNOFFICIAL_ARCHIVE_PIN = Object.freeze({
-  logicalName: "ldraw-unofficial-2026-08-02.zip",
-  bytes: 87_377_883,
-  sha256: "sha256:09ec08007203b66e79b1f857aa4804cbee26e1337e177a7c3a87adc1268e44d4",
-});
-const DEFAULT_UNOFFICIAL_ARCHIVE = "C:/tmp/ldraw-unofficial-2026-08-02.zip";
-
-export function unofficialArchivePath(env: Readonly<Record<string, string | undefined>>): string {
-  return env.LEGO_LDRAW_UNOFFICIAL_ARCHIVE ?? DEFAULT_UNOFFICIAL_ARCHIVE;
-}
 
 export class PlayerLibraryError extends Error {
   override readonly name = "PlayerLibraryError";
@@ -41,74 +34,41 @@ export class PlayerLibraryError extends Error {
 
 const sha256 = (bytes: Uint8Array) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
-function archiveReader(bytes: Uint8Array, prefix: string): LibraryReader {
-  const archive = openExactLdrawArchive(bytes);
-  return {
+export interface PlayerLibrary {
+  readonly library: LibraryReader;
+  readonly colours: string;
+}
+
+/** The pinned official archive as a reader, and its colour table. */
+export function openPlayerLibrary(path: string): PlayerLibrary {
+  if (!existsSync(path)) {
+    throw new PlayerLibraryError(
+      `no LDraw library archive at ${path}; set LEGO_LDRAW_OFFICIAL_ARCHIVE to the pinned ${LDRAW_FRAME_ARCHIVE_PIN.logicalName} (${LDRAW_FRAME_ARCHIVE_PIN.bytes} bytes).`,
+    );
+  }
+  let archive: ReturnType<typeof openExactLdrawArchive>;
+  try {
+    archive = openExactLdrawArchive(readPinnedArchive(path));
+  } catch (error) {
+    throw new PlayerLibraryError(error instanceof Error ? error.message : String(error));
+  }
+  const library: LibraryReader = {
     read(member) {
       try {
-        return archive.read(`${prefix}${member}`).toString("utf8");
+        return archive.read(`ldraw/${member}`).toString("utf8");
       } catch (error) {
         if (error instanceof TypeError && error.message.includes("lacks exact member")) return null;
         throw error;
       }
     },
   };
-}
-
-export interface PlayerLibrary {
-  readonly library: LibraryReader;
-  readonly colours: string;
-  /** Library paths the unofficial archive answered. */
-  readonly unofficialFiles: ReadonlySet<string>;
-}
-
-/** The official archive, then the unofficial one when present, as one reader. */
-export function openPlayerLibrary(paths: {
-  readonly official: string;
-  readonly unofficial: string;
-}): PlayerLibrary {
-  if (!existsSync(paths.official)) {
-    throw new PlayerLibraryError(
-      `no LDraw library archive at ${paths.official}; set LEGO_LDRAW_OFFICIAL_ARCHIVE to the pinned ${LDRAW_FRAME_ARCHIVE_PIN.logicalName} (${LDRAW_FRAME_ARCHIVE_PIN.bytes} bytes).`,
-    );
-  }
-  let official: LibraryReader;
-  try {
-    official = archiveReader(readPinnedArchive(paths.official), "ldraw/");
-  } catch (error) {
-    throw new PlayerLibraryError(error instanceof Error ? error.message : String(error));
-  }
-  let unofficial: LibraryReader | null = null;
-  if (existsSync(paths.unofficial)) {
-    const bytes = readFileSync(paths.unofficial);
-    const digest = sha256(bytes);
-    if (bytes.length !== UNOFFICIAL_ARCHIVE_PIN.bytes || digest !== UNOFFICIAL_ARCHIVE_PIN.sha256) {
-      throw new PlayerLibraryError(
-        `${paths.unofficial} is ${bytes.length} bytes at ${digest}, not the pinned ${UNOFFICIAL_ARCHIVE_PIN.logicalName} (${UNOFFICIAL_ARCHIVE_PIN.bytes} bytes at ${UNOFFICIAL_ARCHIVE_PIN.sha256}).`,
-      );
-    }
-    unofficial = archiveReader(bytes, "");
-  }
-  const unofficialFiles = new Set<string>();
-  const colours = official.read("LDConfig.ldr");
+  const colours = library.read("LDConfig.ldr");
   if (colours === null) {
     throw new PlayerLibraryError(
-      `the LDraw library archive at ${paths.official} holds no ldraw/LDConfig.ldr.`,
+      `the LDraw library archive at ${path} holds no ldraw/LDConfig.ldr.`,
     );
   }
-  return {
-    colours,
-    unofficialFiles,
-    library: {
-      read(member) {
-        const found = official.read(member);
-        if (found !== null || unofficial === null) return found;
-        const fallback = unofficial.read(member);
-        if (fallback !== null) unofficialFiles.add(member);
-        return fallback;
-      },
-    },
-  };
+  return { library, colours };
 }
 
 interface MeshPackPart {
@@ -185,7 +145,7 @@ export function builderMeshPart(part: MeshPackPart, binary: Buffer): string {
       normals[0]!.reduce((dot, value, axis) => dot + value * normals[1]![axis]!, 0) < sharp,
   );
   return [
-    `0 ${part.name} (stand-in: LEGO Builder mesh, no LDraw file exists)`,
+    `0 ${part.name} (stand-in: LEGO Builder mesh; the official LDraw library has no file for it)`,
     `0 Name: builder/${part.id}.dat`,
     "0 Author: LEGO Builder native mesh, converted by tools/booklet/player-library.ts",
     "0 !LDRAW_ORG Unofficial_Part",

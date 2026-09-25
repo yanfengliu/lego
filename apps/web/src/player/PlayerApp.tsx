@@ -129,7 +129,12 @@ export function PlayerApp() {
   return (
     <div className="player">
       <div className="stage">
-        <ModelView mpd={loaded.mpd} stepOf={loaded.stepOf} step={step} />
+        <ModelView
+          mpd={loaded.mpd}
+          stepOf={loaded.stepOf}
+          step={step}
+          source={loaded.steps.set.modelSource}
+        />
         <PagePanel url={`${DATA_ROOT}/${loaded.setId}/booklet.pdf`} page={current.page} />
       </div>
       <div className="controls" role="group" aria-label="Playback">

@@ -37,8 +37,8 @@ import { PlayerDataError } from "./player-data";
  * The host element carries what the scene actually shows, for tests and
  * probes: data-step, data-visible-parts and data-highlighted-parts.
  */
-export const HIGHLIGHT_HOLD_MS = 1200;
-export const HIGHLIGHT_FADE_MS = 800;
+export const HIGHLIGHT_HOLD_MS = 2000;
+export const HIGHLIGHT_FADE_MS = 1000;
 const HIGHLIGHT = new Color(0xff8a00);
 const HIGHLIGHT_EMISSIVE = 0.45;
 /** Camera direction from the model's centre, in three's axes (+Y up, +Z toward the default viewer). */

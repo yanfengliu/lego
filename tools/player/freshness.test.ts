@@ -31,10 +31,9 @@ describe("player data freshness", () => {
       lxfml: join(root, "model.xml"),
       ldraw: join(root, "model.ldr"),
       library: join(root, "library.zip"),
-      unofficialLibrary: join(root, "absent.zip"),
       meshFallback: join(root, "pack.json"),
     };
-    for (const path of Object.values(inputs)) if (!path.endsWith("absent.zip")) write(path, "v1");
+    for (const path of Object.values(inputs)) write(path, "v1");
     write(join(root, "tools/booklet/stage.ts"), "export const a = 1;");
     write(join(root, "tools/booklet/stage.test.ts"), "test");
   });
@@ -56,9 +55,9 @@ describe("player data freshness", () => {
       "the booklet PDF changed",
     );
     generate();
-    write(inputs.unofficialLibrary, "now present");
+    rmSync(inputs.meshFallback);
     expect(stalenessOf(out(), currentPlayerStamp(SET, inputs, root))).toBe(
-      "the unofficial LDraw library archive changed",
+      "the Builder mesh pack changed",
     );
     generate();
     expect(stalenessOf(out(), currentPlayerStamp({ ...SET, name: "Renamed" }, inputs, root))).toBe(

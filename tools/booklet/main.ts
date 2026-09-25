@@ -32,7 +32,6 @@ import {
   type FrameRegistry,
 } from "./ldraw-frames.ts";
 import { primaryPlayback, runPlaybackStage, type PlaybackStage } from "./playback-stage.ts";
-import { unofficialArchivePath } from "./player-library.ts";
 import { playerLine, PlayerStageError, runPlayerStage, type PlayerStage } from "./player-stage.ts";
 import {
   buildReferenceFile,
@@ -315,11 +314,7 @@ export async function runBooklet(options: {
                 set,
                 directory: playerDirectory,
                 repositoryRoot: REPOSITORY_ROOT,
-                inputs: {
-                  ...setPaths,
-                  library: officialArchivePath(process.env),
-                  unofficialLibrary: unofficialArchivePath(process.env),
-                },
+                inputs: { ...setPaths, library: officialArchivePath(process.env) },
                 bookletPages: read.value.pageCount,
                 key: key!,
                 official: parseOfficialLdraw(
