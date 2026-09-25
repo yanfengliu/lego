@@ -25,8 +25,9 @@ import { RUN_EVIDENCE_VARIABLE, skipWithoutRunEvidence } from "./run-evidence-ga
  * name and page, the part count and the "+N" the bar shows, against the
  * booklet's own printed callout counts (the read stage, which never sees the
  * answer key), a verdict other than "unbuildable" (a state holding a pending
- * sub-build reads "subassembly"), and that every step renders a document of
- * its own (the footer hash changes each step).
+ * sub-build reads "subassembly"), and that every step placing parts renders a
+ * document of its own (the footer hash changes) while a step placing none
+ * renders the one before it again.
  * Bound: counts, labels and document identity only. It cannot tell a right
  * picture from a wrong one, a mirror image included; the pixels were compared
  * with the booklet pages by eye, and that comparison is recorded in the devlog.
@@ -155,10 +156,16 @@ test("plays the booklet reference build one printed step at a time", async ({ pa
     // The booklet's printed callouts and the answer key's playback agree on every count.
     expect(cumulative, `parts after printed step ${row.step}`).toBe(row.placedParts);
     await expect(page.locator(".playback-verdict")).not.toHaveText("unbuildable");
-    await expect(footerHash).not.toHaveText(seen.at(-1)!.hash);
+    // A step that places parts renders a new document; one that places none (the booklet
+    // joining a sub-build the file already draws in place) renders the same one again.
+    if (printed!.pieces > 0) await expect(footerHash).not.toHaveText(seen.at(-1)!.hash);
+    else await expect(footerHash).toHaveText(seen.at(-1)!.hash);
     seen.push({ readout: await readout.innerText(), hash: await footerHash.innerText() });
   }
-  expect(new Set(seen.map(({ hash }) => hash)).size).toBe(seen.length);
+  const emptySteps = covered.filter(
+    ({ step }) => read.find((printed) => printed.step === step)!.pieces === 0,
+  ).length;
+  expect(new Set(seen.map(({ hash }) => hash)).size).toBe(seen.length - emptySteps);
 
   // Stepping back shows each earlier state again, unchanged.
   for (let position = covered.length - 1; position >= 0; position -= 1) {
