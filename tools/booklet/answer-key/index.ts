@@ -26,6 +26,8 @@ export type { LxfmlBrick, LxfmlModel, LxfmlStep } from "./lxfml.ts";
 export { pairOfficialLdraw, parseOfficialLdraw } from "./official-ldraw.ts";
 export type {
   ExportDesignFrame,
+  LdrawRow,
+  OfficialLdrawModel,
   OfficialLdrawBrick,
   OfficialLdrawPairing,
   PairingCheck,

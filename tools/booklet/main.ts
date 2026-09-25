@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 
 import { BUILTIN_CATALOG_VERSION, COLOR_DEFINITIONS, PART_DEFINITIONS } from "@lego-studio/catalog";
 
+import { officialArchivePath } from "../../scripts/derive-ldraw-catalog-frames.mjs";
+import { playerOutputDir, playerSet, setInputPaths } from "../player/sets.ts";
 import {
-  ANSWER_KEY_DEFAULT_PATHS,
   AnswerKeyFormatError,
   loadAnswerKey,
+  parseOfficialLdraw,
   type AnswerKeyLoad,
 } from "./answer-key/index.ts";
 import { runAlignStage, type AlignStage } from "./align-stage.ts";
@@ -30,6 +32,8 @@ import {
   type FrameRegistry,
 } from "./ldraw-frames.ts";
 import { primaryPlayback, runPlaybackStage, type PlaybackStage } from "./playback-stage.ts";
+import { unofficialArchivePath } from "./player-library.ts";
+import { playerLine, PlayerStageError, runPlayerStage, type PlayerStage } from "./player-stage.ts";
 import {
   buildReferenceFile,
   REFERENCE_BUILD_FILE,
@@ -75,10 +79,8 @@ import { compareWithBaseline, headlineOf, summaryLines, type Stage } from "./sum
  * it; no stage waits on it.
  */
 export const BOOKLET_STATUS_VERSION = "lego.booklet-status/3";
-export const BOOKLET_BOOKLET_DEFAULT_PATH = "recipes/6651557.pdf";
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const BASELINE_PATH = resolve(REPOSITORY_ROOT, "status", "booklet-baseline.json");
 
 async function timed<T>(run: () => T | Promise<T>): Promise<Stage<T>> {
   const started = performance.now();
@@ -121,9 +123,9 @@ const blockedBy = (stage: Stage<unknown>, what: string): NotRun =>
       );
 
 /** The committed headline counts, or null when there are none yet. */
-function readBaseline(): unknown {
+function readBaseline(path: string): unknown {
   try {
-    return JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+    return JSON.parse(readFileSync(path, "utf8"));
   } catch {
     return null;
   }
@@ -134,8 +136,14 @@ function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-export async function runBooklet(options: { readonly writeBaseline: boolean }): Promise<number> {
+export async function runBooklet(options: {
+  readonly writeBaseline: boolean;
+  /** A set of tools/player/sets.ts; the manifest's first when absent. */
+  readonly set?: string;
+}): Promise<number> {
   const started = performance.now();
+  const set = playerSet(options.set);
+  const baselinePath = resolve(REPOSITORY_ROOT, set.baseline);
   const inputRoot = mainCheckoutRoot(REPOSITORY_ROOT);
   const outDir = resolve(process.env.BOOKLET_OUT ?? resolve(REPOSITORY_ROOT, "output", "booklet"));
   const statusPath = resolve(outDir, "status.json");
@@ -145,22 +153,18 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
   assertOutputIgnored(statusPath);
   assertOutputIgnored(referencePath);
   assertOutputIgnored(referenceBuildPath);
+  const playerDirectory = playerOutputDir(set, REPOSITORY_ROOT, process.env);
+  for (const file of ["model.mpd", "steps.json", "stamp.json"]) {
+    assertOutputIgnored(resolve(playerDirectory, file));
+  }
+  const setPaths = setInputPaths(set, inputRoot, process.env);
   const envPath = (name: string, fallback: string) =>
     resolve(process.env[name] ?? resolve(inputRoot, fallback));
   const runEvidence = readRunEvidenceOptIn(process.env[RUN_EVIDENCE_VARIABLE]);
   const inputs = {
-    booklet: inputFile(
-      envPath("BOOKLET_PDF", BOOKLET_BOOKLET_DEFAULT_PATH),
-      INPUT_LIMITS.bookletPdfBytes,
-    ),
-    lxfml: inputFile(
-      envPath("BOOKLET_LXFML", ANSWER_KEY_DEFAULT_PATHS.lxfml),
-      INPUT_LIMITS.lxfmlBytes,
-    ),
-    officialLdraw: inputFile(
-      envPath("BOOKLET_OFFICIAL_LDRAW", ANSWER_KEY_DEFAULT_PATHS.ldraw),
-      INPUT_LIMITS.officialLdrawBytes,
-    ),
+    booklet: inputFile(setPaths.booklet, INPUT_LIMITS.bookletPdfBytes),
+    lxfml: inputFile(setPaths.lxfml, INPUT_LIMITS.lxfmlBytes),
+    officialLdraw: inputFile(setPaths.ldraw, INPUT_LIMITS.officialLdrawBytes),
     // Run evidence, not a playback input: not even sized or hashed unless opted in.
     ldrawFrames:
       runEvidence.status === "on"
@@ -297,6 +301,41 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
               }),
             ));
 
+  // The build player's data: the aligned bricks at their (corrected) official poses, packed with the LDraw library.
+  const player: Stage<PlayerStage> =
+    ldrawVerdict ??
+    (read.status !== "ran"
+      ? blockedBy(read, "the booklet read, for each printed step's page")
+      : !alignValue
+        ? blockedBy(align, "the alignment, to know each printed step's bricks")
+        : exportFrames.status !== "ran"
+          ? blockedBy(exportFrames, "the export frame check, for the frame corrections")
+          : await timed(() =>
+              runPlayerStage({
+                set,
+                directory: playerDirectory,
+                repositoryRoot: REPOSITORY_ROOT,
+                inputs: {
+                  ...setPaths,
+                  library: officialArchivePath(process.env),
+                  unofficialLibrary: unofficialArchivePath(process.env),
+                },
+                bookletPages: read.value.pageCount,
+                key: key!,
+                official: parseOfficialLdraw(
+                  readFileSync(inputs.officialLdraw.path, "utf8"),
+                  `LDraw ${inputs.officialLdraw.path}`,
+                ),
+                align: alignValue,
+                corrections: exportFrames.value.corrections,
+              }),
+            ).catch((error: unknown): NotRun => {
+              if (!(error instanceof PlayerStageError)) throw error;
+              return /^no LDraw library archive at /u.test(error.message)
+                ? skipped(error.message)
+                : failed(error.message);
+            }));
+
   const stages = { read, identify, align, catalog, exportFrames, playback, key };
   const headline = headlineOf(stages);
   const primary = playback.status === "ran" ? primaryPlayback(playback.value) : null;
@@ -344,6 +383,7 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
           ? { status: registryStage.value.status, path: registryStage.value.path }
           : registryStage,
       playback: playback.status === "ran" ? playbackSection(playback.value) : playback,
+      player: player.status === "ran" ? { status: "ran", ...player.value } : player,
     },
   });
   if (playback.status === "ran") writeJson(referencePath, referencePlayback(playback.value));
@@ -354,17 +394,17 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
     // A file left by an earlier run would be played as if this run had written it.
     rmSync(referenceBuildPath, { force: true });
   }
-  if (options.writeBaseline)
-    writeJson(BASELINE_PATH, { version: BOOKLET_STATUS_VERSION, headline });
+  if (options.writeBaseline) writeJson(baselinePath, { version: BOOKLET_STATUS_VERSION, headline });
   const lines = summaryLines({
     ...stages,
     keyLoad,
     frameRegistry: registryStage,
     statusPath,
-    baseline: compareWithBaseline(headline, readBaseline()),
+    baseline: compareWithBaseline(headline, readBaseline(baselinePath)),
     totalMs: Math.round(performance.now() - started),
   });
   if (referenceBuild) lines.splice(-1, 0, referenceBuildLine(referenceBuild, referenceBuildPath));
+  lines.splice(-1, 0, playerLine(player));
   process.stdout.write(`${lines.join("\n")}\n`);
   const anyFailed = [
     read,
@@ -375,6 +415,7 @@ export async function runBooklet(options: { readonly writeBaseline: boolean }): 
     registryStage,
     exportFrames,
     playback,
+    player,
   ].some((stage) => stage?.status === "failed");
   return anyFailed ? 1 : 0;
 }

@@ -48,6 +48,9 @@ const VARIABLES = [
   "BOOKLET_LDRAW_FRAMES",
   "BOOKLET_OUT",
   "LEGO_RUN_EVIDENCE",
+  "LEGO_LDRAW_OFFICIAL_ARCHIVE",
+  "LEGO_LDRAW_UNOFFICIAL_ARCHIVE",
+  "LEGO_BUILDER_NATIVE_PACK",
 ] as const;
 
 describe("npm run booklet", { timeout: 60_000 }, () => {
@@ -62,6 +65,10 @@ describe("npm run booklet", { timeout: 60_000 }, () => {
     process.env.BOOKLET_OFFICIAL_LDRAW = join(dir, "model.ldr");
     process.env.BOOKLET_LDRAW_FRAMES = join(dir, "absent-frames.json");
     process.env.BOOKLET_OUT = join(dir, "out");
+    // The player stage's geometry sources: absent, so no case reads a machine's archives.
+    process.env.LEGO_LDRAW_OFFICIAL_ARCHIVE = join(dir, "absent-ldraw.zip");
+    process.env.LEGO_LDRAW_UNOFFICIAL_ARCHIVE = join(dir, "absent-unofficial.zip");
+    process.env.LEGO_BUILDER_NATIVE_PACK = join(dir, "absent-pack.json");
     // The run reads the opt-in itself, so each case starts opted out whatever the shell set.
     delete process.env.LEGO_RUN_EVIDENCE;
     writeFileSync(join(dir, "model.xml"), LXFML);
