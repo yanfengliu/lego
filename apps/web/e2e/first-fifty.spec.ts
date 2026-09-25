@@ -54,7 +54,7 @@ test("reads the first fifty steps off the booklet", async ({ page }) => {
   );
   expect(panels.length).toBeGreaterThan(0);
 
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   interface StepEntry {
     stepNumber: number;
     pageNumber: number;

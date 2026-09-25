@@ -19,7 +19,7 @@ test("renders booklet pages as a reader sees them", async ({ page }) => {
     onlyIf: hasSampleBooklet,
   });
   page.on("pageerror", (e) => console.log("PAGEERROR " + e.message));
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
 
   const pageNumbers = [1, 12, 40, 120, 200];
   for (const pageNumber of pageNumbers) {

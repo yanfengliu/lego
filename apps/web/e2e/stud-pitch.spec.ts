@@ -59,7 +59,7 @@ test("measures stud pitch from highlight scallops", async ({ page }) => {
     "reads the sample booklet to measure stud pitch from highlight scallops",
     { onlyIf: hasSampleBooklet },
   );
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   mkdirSync("output", { recursive: true });
 
   const perPage: Record<string, unknown>[] = [];

@@ -119,7 +119,7 @@ test("captures exact step-2/4/16 full and isolated source-art contributions", as
     xPt: row.xPt,
     yPt: row.yPt,
   }));
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   const urls = bookletProbeUrls();
   const input: SourceArtReboundBrowserInput = {
     expectedPdfjsVersion: PDFJS_VERSION,

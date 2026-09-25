@@ -47,7 +47,7 @@ test("keeps distinct step-18 part art bound to each printed quantity label", asy
   skipWithoutRunEvidence(test, "reads recipes/6651557.pdf to render step-18 callout crops", {
     onlyIf: hasSampleBooklet,
   });
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   const results = await renderCalloutCropsInPage(page, {
     ...bookletProbeUrls(),
     pageNumber: 22,

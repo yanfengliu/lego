@@ -66,13 +66,7 @@ The stage convention is H for the high-resolution cleaned-art mask, P for high-r
 
 Run only when the ignored booklet and prepared inputs are current and you deliberately want the full diagnostic:
 
-```powershell
-$env:LEGO_REAL_BUILD_REQUIRED = "1"
-$env:LEGO_REAL_BUILD_SOURCE_PARITY = "1"
-npx.cmd playwright test apps/web/e2e/real-build-observation-source-parity.spec.ts
-Remove-Item Env:LEGO_REAL_BUILD_SOURCE_PARITY -ErrorAction SilentlyContinue
-Remove-Item Env:LEGO_REAL_BUILD_REQUIRED -ErrorAction SilentlyContinue
-```
+`real-build-observation-source-parity.spec.ts` was retired with the deleted editor host it loaded (milestone 2b, 2026-09-25; see `docs/work/1_booklet-reset/plan.md` G3e) and this command no longer runs. The description above stays as a record of what it measured.
 
 The publication binds the exact PDF and full prepared-panel digest, bootstrap source lock, execution mirror, served responses and retrievable served-source bundle, runtime and checkout identity, browser-result bytes, packed evidence, PNG diagnostics, and contained atomic output. Its work-RGBA, candidate-policy, and candidate-derivation browser commitments are explicitly opaque and not independently reproduced; the point-sampled source-RGBA column is visualization-only and cannot reconstruct source pixels.
 
@@ -80,13 +74,7 @@ The publication binds the exact PDF and full prepared-panel digest, bootstrap so
 
 The separate exact-five command exercises only those five rows. Its current spec reconstructs the bounded browser wire in Node and closes exact high/work RGBA, H/P/D/W, pairwise facts, and ten lossless PNGs, then publishes only after the exact browser capture reproduces against the PDF, full 359-row prepared manifest, source snapshot, provenance, served source, checkout, and runtime closure. The publisher derives the execution identity internally as audit data, writes the capture manifest, full manifest, five roles, ten PNGs, and provenance beneath `output/playwright/real-build-source-calibration/runs/<identity-hash>/`, and atomically replaces `output/playwright/real-build-source-calibration/summary.json` last. The retained reader reopens every byte class and reproduces that identity. The summary remains `pending-unreviewed` with authority absent; it is not a human review, bearer capability, calibration admission, browser-output `/4` result, or document authority. The real-booklet exact-five opt-in was executed on 2026-08-13 and retained under audit-only execution identity `sha256:979157ed12ef36fcd59a85aba13268d56a47d77ee886070cd31221805d756462`; this does not admit the dense 359-step probe. Tests can replace the unavailable event seam with a request-bound one-use future-broker mock to exercise the private admission consumer, including version, event-identity, sequential-replay and reentrant-replay refusal; that mock is not a production authority source.
 
-```powershell
-$env:LEGO_REAL_BUILD_REQUIRED = "1"
-$env:LEGO_REAL_BUILD_SOURCE_PARITY_CALIBRATION = "1"
-npx.cmd playwright test apps/web/e2e/real-build-observation-source-parity-calibration.spec.ts
-Remove-Item Env:LEGO_REAL_BUILD_SOURCE_PARITY_CALIBRATION -ErrorAction SilentlyContinue
-Remove-Item Env:LEGO_REAL_BUILD_REQUIRED -ErrorAction SilentlyContinue
-```
+`real-build-observation-source-parity-calibration.spec.ts` was retired with the deleted editor host it loaded (milestone 2b, 2026-09-25; see `docs/work/1_booklet-reset/plan.md` G3e) and this command no longer runs. The description above stays as a record of what it measured.
 
 ### Inspect a detached browser-output `/4` tuple
 
@@ -116,11 +104,7 @@ The current lineage cutover is additive and fail-closed. Central `document:sha25
 
 The private authority-absent step-1/panel-2 diagnostic prepares one instruction scene per unique compiled child, renders all eight D4 hypotheses through it, copies every reusable readback before mask extraction, and disposes that child before preparing the next. Factory raster dimensions, frame dimensions and registration-panel number must match the detached source before work. The fitted view, frame target/radius and centre are not inspectably bound by `sourceDescriptorDigest`, so this control is not source-authenticated proper-frame evidence and cannot select or accept a booklet placement.
 
-Run the real-WebGL parity and resource control headlessly:
-
-```powershell
-npx.cmd playwright test apps/web/e2e/real-build-step-one-silhouette-reuse.spec.ts
-```
+`real-build-step-one-silhouette-reuse.spec.ts` ran the real-WebGL parity and resource control headlessly; it was retired with the deleted editor host it loaded (milestone 2b, 2026-09-25; see `docs/work/1_booklet-reset/plan.md` G3e) and this command no longer runs.
 
 The control uses a non-square 320 × 192 raster and compares the prepared route with an independent inline direct renderer. It requires all eight ordered mask digests to match, all eight prepared digests to be distinct and nonempty, and scene derive/dispose counts of 1/1 versus 8/8. This is a scene-construction measurement only: all eight WebGL renders still execute and no wall-clock speedup is claimed. The focused Vitest diagnostic additionally requires immediate child-A disposal before child-B preparation, peak live prepared scenes of one, immutable constructor configuration, pre-render refusal for transposed or wrong-panel metadata, and fatal propagation of setup/disposal failure.
 
@@ -158,15 +142,9 @@ The exact-three packet is a separate strict transport for that projection. Its w
 
 ```powershell
 npx.cmd vitest run apps/web/test/real-build-exact-three-source-packet.test.ts
-$env:LEGO_REAL_BUILD_EXACT_THREE_SOURCE = "1"
-try {
-  npx.cmd playwright test apps/web/e2e/real-build-exact-three-source.spec.ts --workers=1
-} finally {
-  Remove-Item Env:LEGO_REAL_BUILD_EXACT_THREE_SOURCE -ErrorAction SilentlyContinue
-}
 ```
 
-The genuine capture must report manifest `sha256:6b09685905bab077c254adf1e8b32ee2eebd7eefac76d04da678ff47a77c3138`, 20,009 manifest bytes, and 8,592,000/2,150,000/738,816 high/work/mask bytes, with one PDF fetch/render/dispose/destroy cycle. Inspect all six regenerated high/work images before accepting the run. This packet does not supply source-execution, prepared-run, physical-frame, placement, accepted-document, or completion authority.
+The genuine capture (previously `apps/web/e2e/real-build-exact-three-source.spec.ts`, retired with the deleted editor host it loaded — milestone 2b, 2026-09-25; see `docs/work/1_booklet-reset/plan.md` G3e) reported manifest `sha256:6b09685905bab077c254adf1e8b32ee2eebd7eefac76d04da678ff47a77c3138`, 20,009 manifest bytes, and 8,592,000/2,150,000/738,816 high/work/mask bytes, with one PDF fetch/render/dispose/destroy cycle; that run no longer exists, and the hostile unit gate above is what remains. This packet does not supply source-execution, prepared-run, physical-frame, placement, accepted-document, or completion authority.
 
 The exact source-art rebound independently recompiles one shared embedded-art class at printed steps 2, 4, and 16, preserves the four later suffix members as counterevidence, and grants no authority by itself. Reproduce its Node artifact and the two independent Chromium PDF.js routes with:
 

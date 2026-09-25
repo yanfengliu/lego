@@ -35,7 +35,7 @@ const HEIGHT = 420;
  */
 test("rebuilds a model from its own step pictures", async ({ page }) => {
   test.setTimeout(600_000);
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(
@@ -407,7 +407,7 @@ test("rebuilds a model from its own step pictures", async ({ page }) => {
  */
 test("rebuilds a model whose booklet turns it over", async ({ page }) => {
   test.setTimeout(600_000);
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   mkdirSync(OUT, { recursive: true });
 
   const result = await page.evaluate(

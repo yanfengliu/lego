@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { RENDERING_MODULE_URL, workspaceModuleUrl } from "./workspace-module";
 
 test("captures exact 24-bit depth and composes only strict minima", async ({ page }) => {
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   const result = await page.evaluate(
     async ({ renderingUrl, threeUrl }) => {
       const rendering = await import(/* @vite-ignore */ renderingUrl);

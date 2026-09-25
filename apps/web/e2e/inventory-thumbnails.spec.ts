@@ -126,7 +126,7 @@ test("crops a labelled, measured thumbnail for every inventory element", async (
   const inventory = extractPartsInventory(source);
   expect(inventory.entries.length).toBeGreaterThan(0);
 
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   const published: PublishedThumbnail[] = [];
   const measurements: GalleryCropMeasurement[] = [];
   const writtenFiles = new Set<string>();

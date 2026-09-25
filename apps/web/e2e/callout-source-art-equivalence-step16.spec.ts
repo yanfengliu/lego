@@ -268,7 +268,7 @@ test("measures exact step-16 embedded source art without granting identity autho
     },
   ]);
 
-  await page.goto("/editor.html");
+  await page.goto("/e2e-host.html");
   const urls = bookletProbeUrls();
   const page18 = await renderCalloutCropsInPage(page, {
     ...urls,

@@ -8,7 +8,10 @@ import { playerDataPlugin } from "../../tools/player/serve.ts";
 const page = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
 export default defineConfig({
-  // The build player (index.html) and its dev-only data routes.
+  // The build player (index.html) and its dev-only data routes. e2e-host.html
+  // is a Playwright-only harness for reading-pipeline specs (milestone 2b);
+  // vite's dev server serves it like any other file without being listed
+  // here, and leaving it out of rollupOptions.input keeps it out of dist/.
   plugins: [react(), playerDataPlugin()],
   build: {
     rollupOptions: {

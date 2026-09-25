@@ -12,8 +12,7 @@ test("reads a real set instruction PDF within its bounds", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
 
-  await page.goto("/editor.html");
-  await page.waitForFunction(() => typeof window.get_model_snapshot === "function");
+  await page.goto("/e2e-host.html");
 
   await page.setInputFiles('input[accept=".pdf,application/pdf"]', SAMPLE_BOOKLET_PATH!);
 
