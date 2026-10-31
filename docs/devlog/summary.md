@@ -2,6 +2,7 @@
 
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
+- 2026-10-30: The local rules' opening line says the fleet canon's core is in `AGENTS.md` and the rest in fleet's coordinator skill and work rules; the lessons file links fleet's `../fleet/canon-candidates.md` as the canon writes it, so the link holds from a worktree. Docs only.
 - 2026-09-25: **Editor deleted (milestone 2b)** — `/editor.html`, `App.tsx` and 59 files only they used are gone. Of 38 editor-hosted specs: 7 deleted, 10 retired with real-build/first-50 (G3e), 21 ported to test-only `e2e-host.html`.
 - [2026-09-24 (build player, milestone 1)](detailed/2026-09-24_2026-09-24.md) — `npm start` plays 21066 step by step beside its booklet page, from the official model; editor now at `/editor.html`. Unofficial 6801/7236/7302 were in the wrong frame; Builder meshes stand in. First frame 11.5 s → 1.6 s.
 - [2026-09-24 (frontier 3, catalog /32)](detailed/2026-09-24_2026-09-24.md) — 41682 gains recess clutches and solid-interval collision; sub-builds join at the booklet's step. Valid through 39 → 44 (280 parts), first blocked 45; reference build 1-37 → 1-44 (stop was its one document, not timing).

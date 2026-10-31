@@ -1,6 +1,6 @@
 # Local rules
 
-This repository's own rules, read at session start with [`docs/START.md`](../START.md). They add to the fleet canon in `AGENTS.md` and never override it. Each rule added on 2026-09-22 states its reason in one clause.
+This repository's own rules, read at session start with [`docs/START.md`](../START.md). They add to the fleet canon, whose core is in `AGENTS.md` and whose rest is in `../fleet/docs/skills/coordinator.md` and `../fleet/docs/work-rules.md`, and never override it. Each rule added on 2026-09-22 states its reason in one clause.
 
 ## The product
 
