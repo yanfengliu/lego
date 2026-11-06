@@ -117,7 +117,7 @@ if (overlong.length > 0) {
  * session in the repo pays to read it. An entry that can name no gate is not a
  * lesson — it is promoted into the fleet constitution through
  * canon-candidates.md, moved to docs/policies/local-rules.md when it binds only
- * here, or dropped. Without this check a line can sit in the queue for months
+ * here and the owner asks for it, or dropped. Without this check a line can sit in the queue for months
  * with nothing said about what would let it leave, which is how thirty of them
  * accumulated.
  */
@@ -126,7 +126,7 @@ if (gateless.length > 0) {
   fail(
     `${gateless.length} rule(s) name no gate. Add "**Waiting on:** <the test, lint rule, schema ` +
       `check or fixed command that would let this line be deleted>" — or promote the entry to ` +
-      `canon-candidates.md, move it to docs/policies/local-rules.md, or drop it. ` +
+      `canon-candidates.md, ask the owner about docs/policies/local-rules.md, or drop it. ` +
       `First: ${claimOf(gateless[0]).slice(0, 120)}…`,
   );
 }
