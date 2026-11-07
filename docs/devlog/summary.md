@@ -1,5 +1,7 @@
 # Devlog Summary
 
+- 2026-11-07: **Delegation is task-dependent.** Scout routing now applies when a read-only lookup is delegated; direct lookups follow fleet canon. The start guide agrees.
+
 Current state belongs in the design documents; this index records only behaviour changes, measured results, and links to the matching detailed history.
 
 - 2026-10-30: The local rules' opening line says the fleet canon's core is in `AGENTS.md` and the rest in fleet's coordinator skill and work rules; the lessons file links fleet's `../fleet/canon-candidates.md` as the canon writes it, so the link holds from a worktree. Docs only.

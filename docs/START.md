@@ -55,7 +55,7 @@ Each is stated once, where the link points.
 - The booklet is ordinary input; the official model is the scoring reference product code never reads ([The booklet and the reference](policies/local-rules.md#the-booklet-and-the-reference)).
 - Build the measurable intermediate first; a change with no number attached is not progress ([Probes and measurement](policies/local-rules.md#probes-and-measurement)).
 - Look at every picture at its native resolution, and drive the real UI ([Looking](policies/local-rules.md#looking)).
-- Ask models closed questions; per-image classification is a one-shot call, and read-only lookups go to the `scout` agent ([Models and subagents](policies/local-rules.md#models-and-subagents)).
+- Ask models closed questions; per-image classification is a one-shot call, and delegated read-only lookups use the `scout` agent ([Models and subagents](policies/local-rules.md#models-and-subagents)).
 - Review runs before a substantial or high-risk milestone merges, sized to risk, with a focused re-review once fixes invalidate it; a devlog summary line is at most 300 characters ([Review, devlog and docs](policies/local-rules.md#review-devlog-and-docs)).
 - Model output is untrusted; user documents change only by explicit command or previewed acceptance (`AGENTS.md`, Invariants).
 
